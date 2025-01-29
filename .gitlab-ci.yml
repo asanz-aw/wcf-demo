@@ -1,0 +1,24 @@
+image: node:20
+
+stages:
+  - build
+  - deploy
+
+include:
+  - component: $CI_SERVER_FQDN/gitlab/pipeline-templates/multi_branch_pages@v1.0.0
+    inputs:
+      pages_dir: build
+      stage: deploy
+
+build:
+  stage: build
+  script:
+    - npm ci
+    - npm run build
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+    CI_PROJECT_PATH: b9d0b69a-7e33-11ee-b2b5-00155d5c9d00
+  artifacts:
+    expire_in: 3 days
+    paths:
+      - build

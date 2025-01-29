@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["ES2021", "dom"],
+    "removeComments": true,
+    "declaration": false,
+    "sourceMap": true,
+    "pretty": true,
+    "stripInternal": true,
+    "preserveConstEnums": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": false,
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "outDir": "./build/",
+    "types": [],
+    "forceConsistentCasingInFileNames": true,
+    "importHelpers": true,
+    "noImplicitOverride": true
+  },
+  "include": [
+    "./src/**/*.ts"
+  ]
+}

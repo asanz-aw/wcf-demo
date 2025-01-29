@@ -1,0 +1,59 @@
+import * as cf from '@easterngraphics/wcf/modules/cf/ArticleElement';
+import * as basket from '@easterngraphics/wcf/modules/eaiws/basket/';
+
+export default class AWVariantCodeUtils {
+    private static readonly DELIMITER = ';';
+    private static readonly REPLACE_FROM = /__/g;
+    private static readonly REPLACE_TO = '_';
+    private static readonly PROPERTY_PREFIX = 'AW_';
+  
+    private static replaceCharacters(input: string): string {
+      return input.replace(this.REPLACE_FROM, this.REPLACE_TO);
+    }
+  
+    private static generateVariantArray(properties: basket.Property[]): string[] {
+      return properties
+        .filter((prop) => prop.propClass.startsWith(this.PROPERTY_PREFIX))
+        .map(
+          (prop) => `${this.replaceCharacters(prop.propClass)}.${this.replaceCharacters(prop.propName)}=${prop.value.value}`
+        );
+    }
+  
+    /**
+     * Creates a variant code string from an article by retrieving its properties and data.
+     * @param article - The article element containing the necessary data.
+     * @returns A Promise that resolves to the concatenated variant code string.
+     */
+    public static async createFromArticle(article: cf.ArticleElement): Promise<string> {
+      const itemProperties: basket.ItemProperties = await article.getItemProperties();
+      const itemData: basket.ArticleData = await article.getArticleData();
+      return this.createVariantCode(itemProperties, itemData);
+    }
+  
+    /**
+     * Creates a variant code string from item properties and article data.
+     * @param itemProperties - The item properties containing variant codes.
+     * @param itemData - The article data containing property details.
+     * @returns The concatenated variant code string.
+     */
+    public static createVariantCode(itemProperties: basket.ItemProperties, itemData: basket.ArticleData
+    ): string {
+      if (!itemProperties || !itemData) {
+        throw new Error('Invalid input: itemProperties or itemData is missing.');
+      }
+  
+      let allVariantProperties: string[] = [];
+      if (itemProperties.article?.variantCode) {
+        allVariantProperties = itemProperties.article.variantCode.split(this.DELIMITER);
+      }
+  
+      const itemDataVariantArray = this.generateVariantArray(itemData.properties ?? []);
+      const uniqueVariantProperties = new Set([
+        ...allVariantProperties,
+        ...itemDataVariantArray,
+      ]);
+      const allValuesString = Array.from(uniqueVariantProperties).join(this.DELIMITER);
+   
+      return allValuesString;
+    }
+  }
