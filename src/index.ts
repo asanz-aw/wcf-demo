@@ -83,7 +83,8 @@ export class App {
             HtmlUtils.getNotNullElementById('catalog'),
             this.session.catalog,
             this.onInsertCatalogArticle.bind(this),
-            this.onInsertCatalogContainer.bind(this)
+            this.onInsertCatalogContainer.bind(this),
+            this.articleManager
         );
         this.propertyEditorUI = new PropertyEditorUI(
             HtmlUtils.getNotNullElementById('property-editor'),

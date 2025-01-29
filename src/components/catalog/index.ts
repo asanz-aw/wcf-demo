@@ -1,6 +1,9 @@
 import * as catalog from '@easterngraphics/wcf/modules/eaiws/catalog';
 import { HtmlUtils } from '../../utils';
 import './index.css';
+import * as cf from '@easterngraphics/wcf/modules/cf';
+import * as basket from '@easterngraphics/wcf/modules/eaiws/basket';
+import { MultiPropertyProvider, Property, PropertyChangedResult, PropertyClass, PropertyValue, groupProperties } from '@easterngraphics/wcf/modules/core/prop';
 /**
  * UI for navigation through a catalog.
  * Calls callback if an articles was clicked, so he can be inserted.
@@ -11,6 +14,7 @@ export class CatalogUI {
     private onInsertArticle: (item: catalog.ArticleCatalogItem) => Promise<void>; // callback if user clicks on a article
     private onInsertContainer: (item: catalog.CatalogItem) => Promise<void>; // callback if user clicks on a container
     private showingSearchResults = false; // indicates if we are currently showing the results of a search query
+    private articleManager: any; // add a property for articleManager
     private htmlContainer: HTMLElement;
     private itemsContainer: HTMLElement;
     private searchBar: HTMLDivElement;
@@ -20,12 +24,14 @@ export class CatalogUI {
         htmlContainer: HTMLElement,
         catalogService: catalog.CatalogService,
         onInsertArticle: (item: catalog.ArticleCatalogItem) => Promise<void>,
-        onInsertContainer: (item: catalog.CatalogItem) => Promise<void>
+        onInsertContainer: (item: catalog.CatalogItem) => Promise<void>,
+        articleManager: cf.ArticleManager
     ) {
         this.catalogService = catalogService;
         this.catalogPath = []; // shows all entries, can be filled up to start with an more specific path
         this.onInsertArticle = onInsertArticle;
-        this.onInsertContainer = onInsertContainer;
+        this.htmlContainer = htmlContainer;
+        this.articleManager = articleManager; // add a property for articleManager
         this.htmlContainer = htmlContainer;
         this.lookupOptions = new catalog.LookupOptions();
         this.lookupOptions.itemTypes = [
@@ -88,15 +94,34 @@ export class CatalogUI {
             this.searchBar.style.display = 'block';
         }
         HtmlUtils.removeAllChildren(this.itemsContainer);
-        const catalogItems: Array<catalog.CatalogItem> = await this.catalogService.listCatalogItems(this.catalogPath, this.lookupOptions);
+
         
-        console.log(catalogItems);
+        const catalogItems: Array<catalog.CatalogItem> = await this.catalogService.listCatalogItems(this.catalogPath, this.lookupOptions);
+///////////////////////////////////////        
+        // console.log(catalogItems);
+/*
+for (const item of catalogItems) {
+ 
+
+    console.log(item);
+   // const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
+    //console.log(element);
+
+}
+    */
+        
+///////////////////////////////////////
+
+    
+
         if (this.catalogPath.length > 0) {
             this.itemsContainer.appendChild(this.createBackButton());
         }
         catalogItems.forEach((item) => { this.itemsContainer.appendChild(this.createCatalogItem(item)); });
     }
 
+
+    
     /**
     * Creates a back button to go back to previous folder.
     */
@@ -131,6 +156,9 @@ export class CatalogUI {
     }
 
     private async onItemClick(item: catalog.CatalogItem): Promise<void> {
+
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
         if (item.type === 'Article') {
             if (item instanceof catalog.ArticleCatalogItem) {
                 await this.onInsertArticle(item);
@@ -148,6 +176,8 @@ export class CatalogUI {
             }
             await this.createCatalogItems();
         }
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
     }
 
     /**

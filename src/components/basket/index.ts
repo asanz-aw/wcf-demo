@@ -42,31 +42,7 @@ export class BasketUI {
         }
     }
 
-
-     public async createAWVariantCode(article:cf.ArticleElement) {
-
-        const itemProperties: basket.ItemProperties = await article.getItemProperties();
-        const itemData: basket.ArticleData   = await article.getArticleData();
-
-        var allVariantProperties: string[] = [];
-        if (itemProperties.article?.variantCode) {
-            allVariantProperties = itemProperties.article.variantCode.split(';');               
-        }
-
-        const itemDataVariantArray = itemData.properties?.map(prop => `${prop.propClass.replace(/__/g, '_')}.${prop.propName.replace(/__/g, '_')}=${prop.value.value}`) ?? [];      
-        const uniqueVariantProperties= Array.from(new Set([...allVariantProperties, ...itemDataVariantArray]));
-
-        const allValuesString = uniqueVariantProperties.join(';');
-        console.log(allValuesString);
-
-     }
-
-
-     
-
-
-
-    /**
+     /**
      * Creates a html element for a basket article and its sub articles.
      */
     private async createBasketItem(article: cf.ArticleElement): Promise<HTMLElement> {
@@ -83,11 +59,16 @@ export class BasketUI {
         const itemData: basket.ArticleData   = await article.getArticleData();
        
        const newVariantCode = await AWVariantCodeUtils.createFromArticle(article);
-        
+        const filteredProperties = await this.getVariantCodeForPrices(article) ?? "";
         item.innerHTML = `
+        <div> Modified Variant Code</div>
         <div class="newVariantCode">${newVariantCode}</div>
+
         <div>
         <button class="copy-button" onclick="navigator.clipboard.writeText('${newVariantCode}')">Copiar Variant Code</button></div>
+        <div>Filtered Properties for quoter</div>
+        <div class="newVariantCode">${filteredProperties}</div>
+        <button class="copy-button" onclick="navigator.clipboard.writeText('${filteredProperties}')">Copiar filtered props</button></div>
         `;
 
         }
@@ -131,6 +112,56 @@ export class BasketUI {
 
 
 
+
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+    
+    private async getVariantCodeForPrices(article: cf.ArticleElement): Promise<string | null> {
+        
+        const propNames = ["AWSERIE__ASIENTO__PLAF","AWSERIE__ASIE__RESP__PLAF", "TAW__LISTAS__TCSMAD"]; // Modificadores de precios mejor categorias? clases?
+
+        try {         
+            const data = await article.getArticleData();
+            const properties = data?.properties;
+            console.log("asassasdasdsd");
+            console.log(properties);
+            if (!properties || properties.length === 0) {
+                console.warn(`[File: ${import.meta.url}] [Method: getVariantCodeForPrices] No properties found`);
+                return null;
+            }
+    
+            const filteredProperties = properties.filter(prop => propNames.includes(prop.propName));
+    
+            if (filteredProperties.length === 0) {
+                console.warn(`[File: ${import.meta.url}] [Method: getVariantCodeForPrices] No matching properties found`);
+                return null;
+            }
+
+            const formattedProperties = filteredProperties
+                .map(prop => `${prop.propClass}.${prop.propName}=${prop.value?.value ?? "N/A"}`) //N/A???
+                .join(';');
+        
+            return formattedProperties;
+          
+        } catch (error) {
+            console.error(`[File: ${import.meta.url}] [Method: getVariantCodeForPrices] Error:`, error);
+            return null;
+        }
+    }
+    
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////// ////////////////////////////////////////////////////// ////////////////////////////////////////////////////// 
+ 
+                       
+
 }
-
-
+ 
+     
+   
+ 
