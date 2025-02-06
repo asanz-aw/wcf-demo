@@ -52,6 +52,13 @@ export default class AWVariantCodeUtils {
         ...allVariantProperties,
         ...itemDataVariantArray,
       ]);
+
+      uniqueVariantProperties.forEach((value) => {
+        if (value.startsWith('AW_TAPICERIA.AWTAPICERIA')) {
+          uniqueVariantProperties.delete(value);
+        }
+      });
+
       const allValuesString = Array.from(uniqueVariantProperties).join(this.DELIMITER);
    
       return allValuesString;

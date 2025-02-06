@@ -4,6 +4,7 @@ import { HtmlUtils } from '../../utils';
 import { ProgressUI } from '../progress';
 import './index.css';
 import { ArticlePropertyHelpers } from '@easterngraphics/wcf/modules/cf';
+import { ArticleData } from '@easterngraphics/wcf/modules/eaiws/basket';
 /**
  * For configuring articles.
  * Shows article properties and their options to the user. So he can change properties of an article.
@@ -30,6 +31,7 @@ export class PropertyEditorUI {
      * Gets properties/classes/choices of the current property provider and creates ui for those.
      */
     private async updatePropertyEditor(): Promise<void> {
+    
         HtmlUtils.removeAllChildren(this.htmlContainer);
         try {
             const propertyClasses: Array<PropertyClass> = await this.propertyProvider.getPropertyClasses();
@@ -42,6 +44,7 @@ export class PropertyEditorUI {
                     // if (this.getPropertyKey(property) === 'EGROFFICE_OFFICE2_MAT__Bezug') { // this example shows, how we could filter out properties, based on their key
                     //     return;
                     // }
+                    
                     htmlPropertyClass.appendChild(this.createProperty(property));
                 });
             })
@@ -71,12 +74,31 @@ export class PropertyEditorUI {
         if (property.editable && property.visible) {
             propertyHtml.onclick = this.onPropertyClick.bind(this, property);
         }
+
+
         // save information in dataset css
         propertyHtml.dataset.editable = property.editable ? 'true' : 'false';
         propertyHtml.dataset.visible = property.visible ? 'true' : 'false';
         propertyHtml.dataset.choiceList = property.choiceList ? 'true' : 'false';
+        
+
+        // if (property.key === "[Character]AWD_AWSERIE__ASIENTO__PLAF")
+        //     {propertyHtml.dataset.visible = 'false';}
+
+
+
         return propertyHtml;
     }
+
+    private removeAllPropertyChoices(): void {
+        const propertyChoices: HTMLCollectionOf<Element> = document.getElementsByClassName('property-choice');
+        let propertyChoice: Element | null = propertyChoices.item(0);
+        while (propertyChoice != null) {
+            propertyChoice.remove();
+            propertyChoice = propertyChoices.item(0);
+        }
+    }
+    
 
     /**
      * If user clicks a property we show the possible choices or let the user directly input a value (depending on the property type).
@@ -84,8 +106,9 @@ export class PropertyEditorUI {
      * If it will be clicked again, we remove the choices.
      */
     private async onPropertyClick(property: Property, mouseEvent: MouseEvent): Promise<void> {
+ 
         ProgressUI.beginLoading();
-        this.removeAllPropertyChoices();
+        this.removeAllPropertyChoices(); 
         if (this.activeProperty !== property) {
             if (property.choiceList) {
                 const propertyChoices: Array<PropertyValue> | null = await property.getChoices();
@@ -98,6 +121,7 @@ export class PropertyEditorUI {
                 }
             } else {
                 const userInput: string | null = prompt(property.getName());
+             //   console.log(userInput);
                 if (userInput != null) {
                     await property.setValue(userInput);
                 }
@@ -109,14 +133,7 @@ export class PropertyEditorUI {
         ProgressUI.endLoading();
     }
 
-    private removeAllPropertyChoices(): void {
-        const propertyChoices: HTMLCollectionOf<Element> = document.getElementsByClassName('property-choice');
-        let propertyChoice: Element | null = propertyChoices.item(0);
-        while (propertyChoice != null) {
-            propertyChoice.remove();
-            propertyChoice = propertyChoices.item(0);
-        }
-    }
+  
 
     private createPropertyChoice(
         property: Property,
@@ -131,7 +148,17 @@ export class PropertyEditorUI {
                 return;
             }
             ProgressUI.beginLoading();
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////        
+       /*     const choices = await property.getChoices();
+            if (choices && choices.length >= 4) {
+                await property.setValue(choices[3].value);
+            }*/
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+            console.log(this.getPropertyKey(property));
             await property.setValue(propertyValue.value);
+        
             ProgressUI.endLoading();
         };
         if (!isNullOrEmpty(propertyValue.largeIcon)) {
@@ -158,7 +185,10 @@ export class PropertyEditorUI {
         if (userData == null) {
             throw new Error('Should never be null in context of ofml data handling!')
         }
+     
         const eaiwsProperty = userData.eaiwsProperty;
+        console.log(eaiwsProperty);
+        console.log(property);
         const eaiwsArticleData = userData.eaiwsArticleData
         return `${eaiwsArticleData.manufacturerId}_${eaiwsArticleData.seriesId}_${eaiwsProperty.propName}`;
     }

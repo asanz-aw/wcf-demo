@@ -3,7 +3,11 @@ import { HtmlUtils } from '../../utils';
 import './index.css';
 import * as cf from '@easterngraphics/wcf/modules/cf';
 import * as basket from '@easterngraphics/wcf/modules/eaiws/basket';
+import AWVariantCodeUtils from '../basket/AWVariantCodeUtils';
+import { AWPriceService } from '../basket/AWPriceService';
+
 import { MultiPropertyProvider, Property, PropertyChangedResult, PropertyClass, PropertyValue, groupProperties } from '@easterngraphics/wcf/modules/core/prop';
+import { AppSettings } from '@easterngraphics/wcf/modules/core';
 /**
  * UI for navigation through a catalog.
  * Calls callback if an articles was clicked, so he can be inserted.
@@ -19,7 +23,7 @@ export class CatalogUI {
     private itemsContainer: HTMLElement;
     private searchBar: HTMLDivElement;
     private readonly lookupOptions: catalog.LookupOptions;
-
+  private priceService:AWPriceService  = new AWPriceService();
     constructor(
         htmlContainer: HTMLElement,
         catalogService: catalog.CatalogService,
@@ -65,7 +69,11 @@ export class CatalogUI {
     }
 
     private async onSearchCatalogClick(inputField: HTMLInputElement): Promise<void> {
-        if (this.catalogPath == null || this.catalogPath.length === 0 || inputField.value === '') {
+        await this.getOneProduct();
+      
+    return 
+      /*
+      if (this.catalogPath == null || this.catalogPath.length === 0 || inputField.value === '') {
             return;
         }
         HtmlUtils.removeAllChildren(this.itemsContainer);
@@ -83,7 +91,8 @@ export class CatalogUI {
             foundItems.scoredItems.forEach((item) => {
                 this.itemsContainer.appendChild(this.createCatalogItem(item.item));
             });
-        }
+        }*/
+
     }
 
     private async createCatalogItems(): Promise<void> {
@@ -156,12 +165,16 @@ for (const item of catalogItems) {
     }
 
     private async onItemClick(item: catalog.CatalogItem): Promise<void> {
+ 
 
 /////////////////////////////////////////////////////
+   // await this.getAllCatalogItems(); ////////////////
 /////////////////////////////////////////////////////
-        if (item.type === 'Article') {
+
+if (item.type === 'Article') {
             if (item instanceof catalog.ArticleCatalogItem) {
                 await this.onInsertArticle(item);
+                this.playWithCatalogItem(item);
             }
         } else if (item.type === 'Container') {
             await this.onInsertContainer(item);
@@ -176,8 +189,7 @@ for (const item of catalogItems) {
             }
             await this.createCatalogItems();
         }
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
+
     }
 
     /**
@@ -195,4 +207,202 @@ for (const item of catalogItems) {
             }
         }
     }
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private async getAllCatalogItems(): Promise<void> {
+        console.log('getAllCatalogItems init');
+        const allItems: catalog.CatalogItem[] = [];
+        const traverseCatalog = async (path: string[]): Promise<void> => {
+            const items = await this.catalogService.listCatalogItems(path, this.lookupOptions);
+            for (const item of items) {
+                allItems.push(item);
+                if (item.type === 'Folder') {
+                    await traverseCatalog([...path, item.name]);
+                }
+            }
+        };
+        await traverseCatalog(this.catalogPath);
+       //await this.getBasketArticle();
+      
+        const articles = allItems.filter(item => item.type === 'Article') as catalog.ArticleCatalogItem[];
+       
+    
+       
+       
+       
+
+        // if (item instanceof catalog.ArticleCatalogItem) {
+        //     await this.onInsertArticle(item);
+        // }
+
+
+
+
+
+
+    }
+
+    private async getBasketArticle(): Promise<void> {
+        const basketItems = await this.catalogService.listCatalogItems(['basket'], this.lookupOptions);
+ 
+    }
+    
+
+private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
+
+
+    if (this.articleManager.getProperties == null) {
+        const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
+        
+        const articleProperties = await element.getProperties();
+     
+
+        if (articleProperties != null) {
+        ;
+            for (const property of articleProperties!) {
+                console.log(property.key)
+                if (property.key =="[Character]AWD_AWSERIE__ASIENTO__PLAF") {   
+                    console.log(property);
+                    console.log(await property.getChoices());
+                }
+                
+                //console.log (property.key);
+                //property.setValue("7");
+
+            }
+               
+        }
+        
+    }
+
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+  private async onInsertCatalogArticle(article: catalog.ArticleCatalogItem): Promise<void> {
+    const element: cf.MainArticleElement = await this.articleManager.insertArticle(article);
+  this.playWithCatalogItem(article);    
+    }
+
+
+
+   private async getOneProduct() {
+
+const sku = "So1410";   
+
+
+    const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
+         parameterSet.catalogIds = [this.catalogPath[0]]; // only search in the whole catalog is currently possible
+        parameterSet.query = sku;
+        parameterSet.numberOfHits = 100;
+        parameterSet.flags = ['FolderText'];
+        const foundItems: catalog.TopCatalogItems | undefined = await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
+      
+
+const AWD_AWOPCION__TAPICERIA = ["", "[Character]AWD_LISTAS__ASP__TAPICERIA", "[Character]AWD_LISTAS__ARP__TAPICERIA"];
+const AWD_AWSERIE__TAPICERIA  = ["", "[Character]AWD_SERIE__ASP__TAPICERIA", "[Character]AWD_SERIE__ARP__TAPICERIA"];
+
+        if (foundItems != null) {
+            // console.log(foundItems);
+            for (const scoredItem of foundItems.scoredItems) {
+                const item = scoredItem.item;
+                if (item instanceof catalog.ArticleCatalogItem) {
+                    const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
+                    const articleProperties = await element.getProperties();
+                    if (articleProperties != null) {
+                        for (const property of articleProperties) {
+
+                             if (property.key =="[Character]AWD_AWOPCION__TAPICERIA") {   //Tipo asiento ASP o ARP
+                               
+                              //  console.log(await property.getChoices());
+/////////////////////////////////////////////////////////////////////////
+const choices = await property.getChoices();
+
+if (choices != null && choices.length > 1 && choices.length <= AWD_AWOPCION__TAPICERIA.length) {
+for (let option = 1; option < choices.length; option++) {
+
+
+    await property.setValue(choices[option].value); //ASP
+    const articleProperties = await element.getProperties(); 
+    if (articleProperties != null) {
+        for (const property of articleProperties) {
+            //sleccionar materia "[Character]AWD_LISTAS__ASP__TAPICERIA
+            if (property.key == AWD_AWOPCION__TAPICERIA[option]) {    //tela o cuero
+                const choices = await property.getChoices();
+                if (choices != null && choices.length > 1) {
+                for (const choice of choices) {
+                    await property.setValue(choice.value); //tela
+    
+                    const articleProperties = await element.getProperties(); 
+                    if (articleProperties != null) {
+                    for (const property of articleProperties) {
+                        if (property.key == AWD_AWSERIE__TAPICERIA[option]) { //serie  
+                            const choices = await property.getChoices();
+                            if (choices != null) {
+                                for (const choice of choices) {
+                                    await property.setValue(choice.value);
+                                    
+                                    const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
+                                    console.log (newVariantCode);
+                                    const priceResponse = await this.priceService.fetchPrice(sku,newVariantCode );
+                                    const price = priceResponse?.price ?? "Price not available";
+
+
+                                   
+                                }
+                            }
+                        }
+    
+                    }
+    
+                }
+                
+    
+                }
+    
+            }
+    
+    
+    
+    
+    
+    }
+    }
+    // console.log(await AWVariantCodeUtils.createFromArticle(element));
+    }
+    
+}  
+    }
+}
+/////////////////////////////////////////////////////////////////////////
+
+                             }
+//StringProperty {mProvider: MainArticleElement, key: '', name: 'Seat options', class: 'AWD_AW_OPC_TAPIC', editable: true, …}
+
+
+                            // const choices = await property.getChoices();
+                            // if (choices != null) {
+                            //     console.log(`Property: ${property.key}`);
+                            //     for (const choice of choices) {
+                            //         console.log(`Choice: ${choice}`);
+                            //     }
+                            // }
+                        }
+                    }
+                }
+            }
+        }
+
+
+   }
+
+

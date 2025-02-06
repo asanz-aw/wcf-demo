@@ -59,4 +59,4 @@ wcf-dev-example
 
 For debugging purposes is the app accessible through the browser console, if you type `app`.
 
-To skip entering the gatekeeper id at startup over and over again, the id can be given by an url parameter (i.e. <http://localhost:3000/?gatekeeper_id=5a969885660e5>).
+To skip entering the gatekeeper id at startup over and over again, the id can be given by an url parameter (i.e. <http://localhost:3000/?gatekeeper_id=602e4ed81e4e3>).

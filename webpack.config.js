@@ -25,6 +25,15 @@ module.exports = {
         port: 3000,
         open: true,
         compress: true,
+    /*proxy: {
+        '/en/quoter/ajax/priceservice': {
+            target: 'http://www.andreuworld.com',
+            changeOrigin: true,
+            secure: false,
+        },
+    },
+    */
+     
     },
 
     resolve: {
