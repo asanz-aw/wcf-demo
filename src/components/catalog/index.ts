@@ -294,114 +294,155 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
     }
 
 
-
-   private async getOneProduct() {
-
-const sku = "So1410";   
-
-
-    const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
-         parameterSet.catalogIds = [this.catalogPath[0]]; // only search in the whole catalog is currently possible
+    private async getOneProduct(): Promise<void> {
+        const sku = "So1410";   
+        
+        // Se configura el parámetro de búsqueda (en este caso se asume que catalogPath[0] ya está definido)
+        const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
+        parameterSet.catalogIds = [this.catalogPath[0]];
         parameterSet.query = sku;
         parameterSet.numberOfHits = 100;
         parameterSet.flags = ['FolderText'];
         const foundItems: catalog.TopCatalogItems | undefined = await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
+        
+        // Arrays para los keys de las propiedades (ajusta según tus necesidades)
+        const AWD_AWOPCION__TAPICERIA = ["", "[Character]AWD_LISTAS__ASP__TAPICERIA", "[Character]AWD_LISTAS__ARP__TAPICERIA"];
+        const AWD_AWSERIE__TAPICERIA  = ["", "[Character]AWD_SERIE__ASP__TAPICERIA", "[Character]AWD_SERIE__ARP__TAPICERIA"];
+        const prefix_SERIE_TAP = "AWSERIE_ASIE";
+        // Crea la tabla de precios y la añade al contenedor (por ejemplo, al htmlContainer)
+        const pricesTable = this.createPricesTable();
+        this.htmlContainer.appendChild(pricesTable);
       
-
-const AWD_AWOPCION__TAPICERIA = ["", "[Character]AWD_LISTAS__ASP__TAPICERIA", "[Character]AWD_LISTAS__ARP__TAPICERIA"];
-const AWD_AWSERIE__TAPICERIA  = ["", "[Character]AWD_SERIE__ASP__TAPICERIA", "[Character]AWD_SERIE__ARP__TAPICERIA"];
-
         if (foundItems != null) {
-            // console.log(foundItems);
-            for (const scoredItem of foundItems.scoredItems) {
-                const item = scoredItem.item;
-                if (item instanceof catalog.ArticleCatalogItem) {
-                    const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
-                    const articleProperties = await element.getProperties();
-                    if (articleProperties != null) {
-                        for (const property of articleProperties) {
-
-                             if (property.key =="[Character]AWD_AWOPCION__TAPICERIA") {   //Tipo asiento ASP o ARP
-                               
-                              //  console.log(await property.getChoices());
-/////////////////////////////////////////////////////////////////////////
-const choices = await property.getChoices();
-
-if (choices != null && choices.length > 1 && choices.length <= AWD_AWOPCION__TAPICERIA.length) {
-for (let option = 1; option < choices.length; option++) {
-
-
-    await property.setValue(choices[option].value); //ASP
-    const articleProperties = await element.getProperties(); 
-    if (articleProperties != null) {
-        for (const property of articleProperties) {
-            //sleccionar materia "[Character]AWD_LISTAS__ASP__TAPICERIA
-            if (property.key == AWD_AWOPCION__TAPICERIA[option]) {    //tela o cuero
-                const choices = await property.getChoices();
-                if (choices != null && choices.length > 1) {
-                for (const choice of choices) {
-                    await property.setValue(choice.value); //tela
-    
-                    const articleProperties = await element.getProperties(); 
-                    if (articleProperties != null) {
-                    for (const property of articleProperties) {
-                        if (property.key == AWD_AWSERIE__TAPICERIA[option]) { //serie  
-                            const choices = await property.getChoices();
-                            if (choices != null) {
-                                for (const choice of choices) {
-                                    await property.setValue(choice.value);
-                                    
-                                    const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
-                                    console.log (newVariantCode);
-                                    const priceResponse = await this.priceService.fetchPrice(sku,newVariantCode );
-                                    const price = priceResponse?.price ?? "Price not available";
-
-
-                                   
+          for (const scoredItem of foundItems.scoredItems) {
+            const item = scoredItem.item;
+            if (item instanceof catalog.ArticleCatalogItem) {
+              // Inserta el artículo en el articleManager
+              const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
+              const articleProperties = await element.getProperties();
+              if (articleProperties != null) {
+                // Recorre las propiedades en busca de la opción de tapicería
+                for (const property of articleProperties) {
+                  if (property.key === "[Character]AWD_AWOPCION__TAPICERIA") {   
+                    // Obtiene las opciones disponibles
+                    const choices = await property.getChoices();
+                    if (choices != null && choices.length > 1 && choices.length <= AWD_AWOPCION__TAPICERIA.length) {
+                      // Itera desde la opción 1 (ignorando el valor vacío en índice 0)
+                      for (let option = 1; option < choices.length; option++) {
+                        // Selecciona la opción (por ejemplo, ASP o ARP)
+                        await property.setValue(choices[option].value);
+                        const propsAfterOption = await element.getProperties(); 
+                        if (propsAfterOption != null) {
+                          for (const prop of propsAfterOption) {
+                            // Busca la propiedad de material (tela o cuero)
+                            if (prop.key === AWD_AWOPCION__TAPICERIA[option]) {
+                              const materialChoices = await prop.getChoices();
+                              if (materialChoices != null && materialChoices.length > 1) {
+                                for (const material of materialChoices) {
+                                  await prop.setValue(material.value);
+                                  const propsAfterMaterial = await element.getProperties(); 
+                                  if (propsAfterMaterial != null) {
+                                    for (const propSerie of propsAfterMaterial) {
+                                      // Busca la propiedad de serie
+                                      if (propSerie.key === AWD_AWSERIE__TAPICERIA[option]) {
+                                        const serieChoices = await propSerie.getChoices();
+                                        if (serieChoices != null) {
+                                          for (const serie of serieChoices) {
+                                            await propSerie.setValue(serie.value);
+                                            
+                                            // Crea el código de variante según el artículo y las opciones seleccionadas
+                                            const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
+                                            //console.log("Variant:", newVariantCode);
+                                            
+                                            // Recupera el precio utilizando el SKU y el nuevo código de variante
+                                           const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
+                                           const price = priceResponse?.price ?? "Price not available";
+                                            const variantCodeParts = newVariantCode.split(';');
+                    
+                                            const serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
+ 
+                                           console.log(`SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price} `);
+                                            
+                                            // Agrega una fila a la tabla con los datos
+                                            this.addPriceRow(pricesTable, sku, serieValue, price.toString());
+                                            
+                                            // Opcional: podrías esperar o realizar otras acciones antes de pasar a la siguiente iteración
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
                                 }
+                              }
                             }
+                          }
                         }
-    
+                      }
                     }
-    
+                  }
                 }
-                
-    
-                }
-    
+              }
             }
-    
-    
-    
-    
-    
-    }
-    }
-    // console.log(await AWVariantCodeUtils.createFromArticle(element));
-    }
-    
-}  
-    }
-}
-/////////////////////////////////////////////////////////////////////////
-
-                             }
-//StringProperty {mProvider: MainArticleElement, key: '', name: 'Seat options', class: 'AWD_AW_OPC_TAPIC', editable: true, …}
-
-
-                            // const choices = await property.getChoices();
-                            // if (choices != null) {
-                            //     console.log(`Property: ${property.key}`);
-                            //     for (const choice of choices) {
-                            //         console.log(`Choice: ${choice}`);
-                            //     }
-                            // }
-                        }
-                    }
-                }
-            }
+          }
         }
+      }
+      
+    
+// Dentro de tu clase CatalogUI, agrega estos métodos:
 
+/**
+ * Crea la tabla HTML para mostrar los precios.
+ */
+private createPricesTable(): HTMLTableElement {
+    const table = document.createElement("table");
+    table.className = "prices-table";
+    
+    // Cabecera de la tabla
+    const thead = document.createElement("thead");
+    thead.innerHTML = `
+      <tr>
+        <th>SKU</th>
+        <th>Código de Variante</th>
+        <th>Precio</th>
+      </tr>
+    `;
+    table.appendChild(thead);
+  
+    // Cuerpo de la tabla
+    const tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+  
+    return table;
+  }
+  
+  /**
+   * Agrega una fila a la tabla con los datos recibidos.
+   * @param table La tabla HTML donde se agregará la fila.
+   * @param sku El SKU del producto.
+   * @param variantCode El código de variante (o serie) generado.
+   * @param price El precio obtenido.
+   */
+  private addPriceRow(table: HTMLTableElement, sku: string, variantCode: string, price: string): void {
+    const tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    
+    const row = document.createElement("tr");
+  
+    const skuCell = document.createElement("td");
+    skuCell.innerText = sku;
+    row.appendChild(skuCell);
+  
+    const variantCell = document.createElement("td");
+    variantCell.innerText = variantCode;
+    row.appendChild(variantCell);
+  
+    const priceCell = document.createElement("td");
+    priceCell.innerText = price;
+    row.appendChild(priceCell);
+  
+    tbody.appendChild(row);
+  }
+  
 
    }
 

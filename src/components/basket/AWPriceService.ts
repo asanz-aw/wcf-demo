@@ -46,7 +46,7 @@ export class AWPriceService {
 
     try {
       const response: AxiosResponse<AWPriceServiceResponse> = await this.axiosInstance.post(endpoint, payload);
-      console.info('Respuesta del Price Service:', response.data);
+    //  console.info('Respuesta del Price Service:', response.data);
       return response.data;
     } catch (error: any) {
       // Se extrae información detallada del error, si está disponible.
