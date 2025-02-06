@@ -20,12 +20,14 @@ export class CatalogUI {
     private showingSearchResults = false; // indicates if we are currently showing the results of a search query
     private articleManager: any; // add a property for articleManager
     private htmlContainer: HTMLElement;
+    private htmlContainerTestResults: HTMLElement;
     private itemsContainer: HTMLElement;
     private searchBar: HTMLDivElement;
     private readonly lookupOptions: catalog.LookupOptions;
   private priceService:AWPriceService  = new AWPriceService();
     constructor(
         htmlContainer: HTMLElement,
+        htmlContainerTestResults: HTMLElement,
         catalogService: catalog.CatalogService,
         onInsertArticle: (item: catalog.ArticleCatalogItem) => Promise<void>,
         onInsertContainer: (item: catalog.CatalogItem) => Promise<void>,
@@ -37,6 +39,7 @@ export class CatalogUI {
         this.htmlContainer = htmlContainer;
         this.articleManager = articleManager; // add a property for articleManager
         this.htmlContainer = htmlContainer;
+        this.htmlContainerTestResults = htmlContainerTestResults;
         this.lookupOptions = new catalog.LookupOptions();
         this.lookupOptions.itemTypes = [
             'Article',
@@ -62,14 +65,18 @@ export class CatalogUI {
         searchBar.appendChild(input);
 
         const submit: HTMLButtonElement = document.createElement('button');
-        submit.innerText = 'search';
+        submit.innerText = 'Test \'em all!!!';
         submit.onclick = this.onSearchCatalogClick.bind(this, input);
         searchBar.appendChild(submit);
         return searchBar;
     }
 
     private async onSearchCatalogClick(inputField: HTMLInputElement): Promise<void> {
-        await this.getOneProduct();
+
+        if (inputField.value == null || inputField.value.trim() === '') {
+            return;
+        }
+        await this.getOneProduct(inputField.value);
       
     return 
       /*
@@ -294,9 +301,7 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
     }
 
 
-    private async getOneProduct(): Promise<void> {
-        const sku = "So1410";   
-        
+    private async getOneProduct(sku: string): Promise<void> {        
         // Se configura el parámetro de búsqueda (en este caso se asume que catalogPath[0] ya está definido)
         const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
         parameterSet.catalogIds = [this.catalogPath[0]];
@@ -306,12 +311,15 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
         const foundItems: catalog.TopCatalogItems | undefined = await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
         
         // Arrays para los keys de las propiedades (ajusta según tus necesidades)
-        const AWD_AWOPCION__TAPICERIA = ["", "[Character]AWD_LISTAS__ASP__TAPICERIA", "[Character]AWD_LISTAS__ARP__TAPICERIA"];
-        const AWD_AWSERIE__TAPICERIA  = ["", "[Character]AWD_SERIE__ASP__TAPICERIA", "[Character]AWD_SERIE__ARP__TAPICERIA"];
-        const prefix_SERIE_TAP = "AWSERIE_ASIE";
+        const AWD_TAPICERIA = "[Character]AWD_AWOPCION__TAPICERIA"; //opcion que se seleccion y salen las opciones de asientos ASP o ARP
+        const AWD_AWOPCION__TAPICERIA = ["", "[Character]AWD_LISTAS__ASP__TAPICERIA", "[Character]AWD_LISTAS__ARP__TAPICERIA"]; //las opciones popsibles 
+        const AWD_AWSERIE__TAPICERIA  = ["", "[Character]AWD_SERIE__ASP__TAPICERIA", "[Character]AWD_SERIE__ARP__TAPICERIA"]; //opcion con las series 
+        const prefix_SERIE_TAP = "AWSERIE_ASIE"; // prefijo para las series de tapiceria para la tabla 
+
+
         // Crea la tabla de precios y la añade al contenedor (por ejemplo, al htmlContainer)
         const pricesTable = this.createPricesTable();
-        this.htmlContainer.appendChild(pricesTable);
+        this.htmlContainerTestResults.appendChild(pricesTable);
       
         if (foundItems != null) {
           for (const scoredItem of foundItems.scoredItems) {
@@ -323,15 +331,19 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
               if (articleProperties != null) {
                 // Recorre las propiedades en busca de la opción de tapicería
                 for (const property of articleProperties) {
-                  if (property.key === "[Character]AWD_AWOPCION__TAPICERIA") {   
+                  if (property.key === AWD_TAPICERIA) {    //Opciones de tapiceria 
                     // Obtiene las opciones disponibles
                     const choices = await property.getChoices();
+                    console.log(AWD_TAPICERIA);
+                    console.log(choices);
                     if (choices != null && choices.length > 1 && choices.length <= AWD_AWOPCION__TAPICERIA.length) {
                       // Itera desde la opción 1 (ignorando el valor vacío en índice 0)
                       for (let option = 1; option < choices.length; option++) {
                         // Selecciona la opción (por ejemplo, ASP o ARP)
                         await property.setValue(choices[option].value);
                         const propsAfterOption = await element.getProperties(); 
+                        console.log(choices[option].value);
+                        console.log(propsAfterOption);
                         if (propsAfterOption != null) {
                           for (const prop of propsAfterOption) {
                             // Busca la propiedad de material (tela o cuero)
@@ -348,21 +360,15 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
                                         const serieChoices = await propSerie.getChoices();
                                         if (serieChoices != null) {
                                           for (const serie of serieChoices) {
-                                            await propSerie.setValue(serie.value);
-                                            
+                                            await propSerie.setValue(serie.value);           
                                             // Crea el código de variante según el artículo y las opciones seleccionadas
                                             const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
-                                            //console.log("Variant:", newVariantCode);
-                                            
                                             // Recupera el precio utilizando el SKU y el nuevo código de variante
-                                           const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
-                                           const price = priceResponse?.price ?? "Price not available";
+                                            const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
+                                            const price = priceResponse?.price ?? "Price not available";
                                             const variantCodeParts = newVariantCode.split(';');
-                    
                                             const serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
- 
-                                           console.log(`SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price} `);
-                                            
+                                            console.log(`SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price} `);
                                             // Agrega una fila a la tabla con los datos
                                             this.addPriceRow(pricesTable, sku, serieValue, price.toString());
                                             

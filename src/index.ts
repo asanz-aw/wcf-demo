@@ -81,6 +81,7 @@ export class App {
         );
         this.catalogUI = new CatalogUI(
             HtmlUtils.getNotNullElementById('catalog'),
+            HtmlUtils.getNotNullElementById('property-editor'),
             this.session.catalog,
             this.onInsertCatalogArticle.bind(this),
             this.onInsertCatalogContainer.bind(this),
