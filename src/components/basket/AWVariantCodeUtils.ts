@@ -52,9 +52,24 @@ export default class AWVariantCodeUtils {
         ...allVariantProperties,
         ...itemDataVariantArray,
       ]);
+      
+ 
+
 
       uniqueVariantProperties.forEach((value) => {
-        if (value.startsWith('AW_TAPICERIA.AWTAPICERIA')) {
+        if (
+          value.startsWith('AW_TAPICERIA.AWTAPICERIA') ||
+          value.startsWith('AW_TAPICERIA_ASP.SERIE') ||
+          value.startsWith('AW_TAPICERIA_ASP.COLECCION')||
+          value.startsWith('AW_TAPICERIA_ARP.SERIE') ||
+          value.startsWith('AW_TAPICERIA_ARP.COLECCION')  ||
+          value.startsWith('AW_TAPICERIA_ARP.AWTAPIZ') ||
+          value.startsWith('AW_TAPICERIA_ASP.AWTAPIZ') ||
+          value.startsWith('AW_BZT_TAP.AWTAPIZ_BZ') 
+          
+          
+    
+        ) {
           uniqueVariantProperties.delete(value);
         }
       });

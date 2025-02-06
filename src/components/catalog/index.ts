@@ -72,7 +72,7 @@ export class CatalogUI {
     }
 
     private async onSearchCatalogClick(inputField: HTMLInputElement): Promise<void> {
-
+ 
         if (inputField.value == null || inputField.value.trim() === '') {
             return;
         }
@@ -100,7 +100,11 @@ export class CatalogUI {
             });
         }*/
 
-    }
+    } 
+
+ 
+
+
 
     private async createCatalogItems(): Promise<void> {
         // show search bar only if we have entered a catalog, because we can not search over all catalogs (of all manufacturers)
@@ -299,10 +303,9 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
     const element: cf.MainArticleElement = await this.articleManager.insertArticle(article);
   this.playWithCatalogItem(article);    
     }
-
-
+ 
     private async getOneProduct(sku: string): Promise<void> {        
-        // Se configura el parámetro de búsqueda (en este caso se asume que catalogPath[0] ya está definido)
+        // Se configura el parámetro de búsqueda (se asume que catalogPath[0] ya está definido)
         const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
         parameterSet.catalogIds = [this.catalogPath[0]];
         parameterSet.query = sku;
@@ -310,14 +313,12 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
         parameterSet.flags = ['FolderText'];
         const foundItems: catalog.TopCatalogItems | undefined = await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
         
-        // Arrays para los keys de las propiedades (ajusta según tus necesidades)
-        const AWD_TAPICERIA = "[Character]AWD_AWOPCION__TAPICERIA"; //opcion que se seleccion y salen las opciones de asientos ASP o ARP
-        const AWD_AWOPCION__TAPICERIA = ["", "[Character]AWD_LISTAS__ASP__TAPICERIA", "[Character]AWD_LISTAS__ARP__TAPICERIA"]; //las opciones popsibles 
-        const AWD_AWSERIE__TAPICERIA  = ["", "[Character]AWD_SERIE__ASP__TAPICERIA", "[Character]AWD_SERIE__ARP__TAPICERIA"]; //opcion con las series 
-        const prefix_SERIE_TAP = "AWSERIE_ASIE"; // prefijo para las series de tapiceria para la tabla 
-
-
-        // Crea la tabla de precios y la añade al contenedor (por ejemplo, al htmlContainer)
+        // Constantes para las propiedades
+        const AWD_TAPICERIA = "[Character]AWD_AWOPCION__TAPICERIA"; // Propiedad de opciones de tapicería
+        const AWD_SERIE_TAPICERIA = "[Character]AWD_LISTAS__TAPICERIA";
+        const prefix_SERIE_TAP = "AWSERIE_ASIE"; // Prefijo para identificar la propiedad de serie en la tabla
+     
+        // Crea la tabla de precios y la añade al contenedor
         const pricesTable = this.createPricesTable();
         this.htmlContainerTestResults.appendChild(pricesTable);
       
@@ -328,53 +329,66 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
               // Inserta el artículo en el articleManager
               const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
               const articleProperties = await element.getProperties();
+            
               if (articleProperties != null) {
-                // Recorre las propiedades en busca de la opción de tapicería
+                console.log(articleProperties);
                 for (const property of articleProperties) {
-                  if (property.key === AWD_TAPICERIA) {    //Opciones de tapiceria 
-                    // Obtiene las opciones disponibles
+                  
+                  if (property.key === AWD_TAPICERIA || property.key === AWD_SERIE_TAPICERIA) {  // Se ha encontrado la propiedad de tapicería
+                    // Obtiene las opciones disponibles para tapicería
                     const choices = await property.getChoices();
-                    console.log(AWD_TAPICERIA);
+                    console.log(`Propiedad: ${AWD_TAPICERIA}`);
                     console.log(choices);
-                    if (choices != null && choices.length > 1 && choices.length <= AWD_AWOPCION__TAPICERIA.length) {
-                      // Itera desde la opción 1 (ignorando el valor vacío en índice 0)
+                    if (choices != null && choices.length > 1) {
+                      // Itera desde el índice 1 (omitiendo el valor vacío en la posición 0)
                       for (let option = 1; option < choices.length; option++) {
-                        // Selecciona la opción (por ejemplo, ASP o ARP)
+                        // Selecciona la opción de tapicería (por ejemplo, ASP o ARP)
                         await property.setValue(choices[option].value);
+                        console.log(`Opción de tapicería seleccionada: ${choices[option].value}`);
+                        // Recupera las propiedades actualizadas tras seleccionar la opción
                         const propsAfterOption = await element.getProperties(); 
-                        console.log(choices[option].value);
-                        console.log(propsAfterOption);
                         if (propsAfterOption != null) {
-                          for (const prop of propsAfterOption) {
-                            // Busca la propiedad de material (tela o cuero)
-                            if (prop.key === AWD_AWOPCION__TAPICERIA[option]) {
-                              const materialChoices = await prop.getChoices();
-                              if (materialChoices != null && materialChoices.length > 1) {
-                                for (const material of materialChoices) {
-                                  await prop.setValue(material.value);
-                                  const propsAfterMaterial = await element.getProperties(); 
-                                  if (propsAfterMaterial != null) {
-                                    for (const propSerie of propsAfterMaterial) {
-                                      // Busca la propiedad de serie
-                                      if (propSerie.key === AWD_AWSERIE__TAPICERIA[option]) {
-                                        const serieChoices = await propSerie.getChoices();
-                                        if (serieChoices != null) {
-                                          for (const serie of serieChoices) {
-                                            await propSerie.setValue(serie.value);           
-                                            // Crea el código de variante según el artículo y las opciones seleccionadas
-                                            const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
-                                            // Recupera el precio utilizando el SKU y el nuevo código de variante
-                                            const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
-                                            const price = priceResponse?.price ?? "Price not available";
-                                            const variantCodeParts = newVariantCode.split(';');
-                                            const serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
-                                            console.log(`SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price} `);
-                                            // Agrega una fila a la tabla con los datos
-                                            this.addPriceRow(pricesTable, sku, serieValue, price.toString());
-                                            
-                                            // Opcional: podrías esperar o realizar otras acciones antes de pasar a la siguiente iteración
-                                          }
+                          // Busca la propiedad de material (por ejemplo, tela o cuero)
+                          // Se asume que la key del material empieza con "[Character]AWD_LISTAS" y termina en "TAPICERIA"
+                          const materialProperty = propsAfterOption.find(
+                            prop => prop.key.startsWith("[Character]AWD_LISTAS") && prop.key.endsWith("TAPICERIA")
+                          );
+                          if (materialProperty) {
+                            const materialChoices = await materialProperty.getChoices();
+                            if (materialChoices != null && materialChoices.length > 1) {
+                              for (const material of materialChoices) {
+                                // Selecciona la opción de material
+                                await materialProperty.setValue(material.value);
+                                // Recupera las propiedades actualizadas tras seleccionar el material
+                                const propsAfterMaterial = await element.getProperties(); 
+                                if (propsAfterMaterial != null) {
+                                  // Busca la propiedad de serie
+                                  // Se asume que la key de la serie empieza con "[Character]AWD_SERIE" y termina en "TAPICERIA"
+                                  const serieProperty = propsAfterMaterial.find(
+                                    prop => prop.key.startsWith("[Character]AWD_SERIE") && prop.key.endsWith("TAPICERIA")
+                                  );
+                                  if (serieProperty) {
+                                    const serieChoices = await serieProperty.getChoices();
+                                    if (serieChoices != null) {
+                                      for (const serie of serieChoices) {
+                                        // Selecciona la opción de serie
+                                        await serieProperty.setValue(serie.value);           
+                                        // Crea el código de variante según el artículo y las opciones seleccionadas
+                                        const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
+                                        // Recupera el precio utilizando el SKU y el nuevo código de variante
+                                        const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
+                                       const price = priceResponse?.price ?? "Price not available";
+                                        // Extrae el valor de la serie a partir del código de variante
+                                        const variantCodeParts = newVariantCode.split(';');
+                                      
+                                      //  console.log(variantCodeParts);
+                                        let serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
+                                        if (serieValue === 'N/A') {
+                                            serieValue = variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A';
                                         }
+                                        console.log(`SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price}`);
+                                        // Agrega una fila a la tabla con los datos
+                                        this.addPriceRow(pricesTable, sku, serieValue, price.toString());
                                       }
                                     }
                                   }
@@ -392,6 +406,12 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
           }
         }
       }
+      
+ 
+
+
+      //AW_COLOR_BASE_PATA.LISTAS_COLOR_BASE=CRBSIT;AW_COLOR_BASE_PATA.AWCOLOR_BASE=EPXN;AW_OPC_TAPICERIA.AWOPCION_TAPICERIA=TAP;AW_TAPICERIA_TAP.LISTAS_TAPICERIA=FLEXTAP;AW_TAPICERIA_TAP.SERIE_TAPICERIA=AZ;AW_TAPICERIA_TAP.COLECCION_TAPICERIA=J1;AW_TAPICERIA_TAP.AWTAPIZ_TAP=1715;AW_TACOS.USO_TACOS=DURO;AW_TACOS.MATERIAL_TACOS=PE;AW_TACOS.TAW_LISTAS_TCS4PFS=TS0558;AW_CSP_CAP.AWCOSTURA=NO;AW_PALA.AWPALA=SIN_PALA;AW_LD.AWLD=NO;AW_SERIE_SILLAS.AWSERIE=1;AW_TAPICERIA_TAP.SERIE_COLECCION=1;AW_TAPICERIA_TAP.AWTAPIZ_TAP=_1715
+      
       
     
 // Dentro de tu clase CatalogUI, agrega estos métodos:
