@@ -24,6 +24,7 @@ export class CatalogUI {
     private itemsContainer: HTMLElement;
     private searchBar: HTMLDivElement;
     private readonly lookupOptions: catalog.LookupOptions;
+    private pricesTable: HTMLTableElement;
   private priceService:AWPriceService  = new AWPriceService();
     constructor(
         htmlContainer: HTMLElement,
@@ -76,7 +77,21 @@ export class CatalogUI {
         if (inputField.value == null || inputField.value.trim() === '') {
             return;
         }
-        await this.getOneProduct(inputField.value);
+
+        HtmlUtils.removeAllChildren(this.htmlContainerTestResults);
+        const copyButton = this.createCopyButton();
+        this.htmlContainerTestResults.appendChild(copyButton);
+
+        const skus = inputField.value.split(',');
+        this.pricesTable = this.createPricesTable();
+        for (const sku of skus) {
+            
+          if (sku.trim() !== '') {
+            await this.getOneProduct(sku.trim());
+          }
+        }
+       
+       // await this.getOneProduct(inputField.value);
       
     return 
       /*
@@ -304,7 +319,9 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
   this.playWithCatalogItem(article);    
     }
  
-    private async getOneProduct(sku: string): Promise<void> {        
+    private async getOneProduct(sku: string): Promise<void> {      
+    
+      
         // Se configura el parámetro de búsqueda (se asume que catalogPath[0] ya está definido)
         const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
         parameterSet.catalogIds = [this.catalogPath[0]];
@@ -319,8 +336,8 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
         const prefix_SERIE_TAP = "AWSERIE_ASIE"; // Prefijo para identificar la propiedad de serie en la tabla
      
         // Crea la tabla de precios y la añade al contenedor
-        const pricesTable = this.createPricesTable();
-        this.htmlContainerTestResults.appendChild(pricesTable);
+        
+        this.htmlContainerTestResults.appendChild(this.pricesTable);
       
         if (foundItems != null) {
           for (const scoredItem of foundItems.scoredItems) {
@@ -386,9 +403,9 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
                                         if (serieValue === 'N/A') {
                                             serieValue = variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A';
                                         }
-                                        console.log(`SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price}`);
+                                        console.log(`SKU: ${sku} - Serie Value: ${serieValue.toString()} - Price: ${price}`);
                                         // Agrega una fila a la tabla con los datos
-                                        this.addPriceRow(pricesTable, sku, serieValue, price.toString());
+                                        this.addPriceRow(this.pricesTable, sku, serieValue, price.toString());
                                       }
                                     }
                                   }
@@ -415,6 +432,30 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
       
     
 // Dentro de tu clase CatalogUI, agrega estos métodos:
+/**
+ * Crea un botón para copiar toda la tabla de precios.
+ */
+private createCopyButton(): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.innerText = "Copy Results";
+  button.onclick = this.copyTableToClipboard.bind(this);
+  return button;
+}
+
+/**
+ * Copia el contenido de la tabla de precios al portapapeles.
+ */
+private copyTableToClipboard(): void {
+  const table = this.htmlContainerTestResults.querySelector(".prices-table");
+  
+  const tableHtml = table?.outerHTML ?? '';
+  navigator.clipboard.writeText(tableHtml).then(() => {
+  //  alert("Table copied to clipboard!");
+  }).catch(err => {
+    console.error("Failed to copy table: ", err);
+  });
+}
+
 
 /**
  * Crea la tabla HTML para mostrar los precios.
@@ -428,7 +469,7 @@ private createPricesTable(): HTMLTableElement {
     thead.innerHTML = `
       <tr>
         <th>SKU</th>
-        <th>Código de Variante</th>
+        <th>Serie</th>
         <th>Precio</th>
       </tr>
     `;
