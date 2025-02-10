@@ -356,13 +356,31 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
                     const choices = await property.getChoices();
                     console.log(`Propiedad: ${AWD_TAPICERIA}`);
                     console.log(choices);
-                    if (choices != null && choices.length > 1) {
+                    if (choices != null && choices.length > 0) {
                       // Itera desde el índice 1 (omitiendo el valor vacío en la posición 0)
-                      for (let option = 1; option < choices.length; option++) {
+                      for (let option = 0; option < choices.length; option++) {
                         // Selecciona la opción de tapicería (por ejemplo, ASP o ARP)
                         await property.setValue(choices[option].value);
                         console.log(`Opción de tapicería seleccionada: ${choices[option].value}`);
-                        // Recupera las propiedades actualizadas tras seleccionar la opción
+                        if (choices[option].value === 'STAP') {
+                          //serie z! 
+                          const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
+                          // Recupera el precio utilizando el SKU y el nuevo código de variante
+                          const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
+                         const price = priceResponse?.price ?? "Price not available";
+                          // Extrae el valor de la serie a partir del código de variante
+                          const variantCodeParts = newVariantCode.split(';');
+                        
+                        //  console.log(variantCodeParts);
+                          let serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
+                          if (serieValue === 'N/A') {
+                              serieValue = variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A';
+                          }
+                          console.log(`SKU: ${sku} - Serie Value: ${serieValue.toString()} - Price: ${price}`);
+                          // Agrega una fila a la tabla con los datos
+                          this.addPriceRow(this.pricesTable, sku, serieValue, price.toString());
+                        
+                        }
                         const propsAfterOption = await element.getProperties(); 
                         if (propsAfterOption != null) {
                           // Busca la propiedad de material (por ejemplo, tela o cuero)
@@ -372,7 +390,7 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
                           );
                           if (materialProperty) {
                             const materialChoices = await materialProperty.getChoices();
-                            if (materialChoices != null && materialChoices.length > 1) {
+                            if (materialChoices != null && materialChoices.length > 0) {
                               for (const material of materialChoices) {
                                 // Selecciona la opción de material
                                 await materialProperty.setValue(material.value);
