@@ -22,7 +22,7 @@ module.exports = {
         static: {
             directory: path.join(__dirname, 'public'),
         },
-        port: 3000,
+        port: 10000,
         open: true,
         compress: true,
     /*proxy: {

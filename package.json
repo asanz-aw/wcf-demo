@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@easterngraphics/wcf": "^10.0.2",
+    "axios": "^1.7.9",
     "core-js": "3.38.1"
   }
 }
