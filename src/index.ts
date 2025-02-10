@@ -25,7 +25,7 @@ import './index.css';
 import { HtmlUtils, isIOSBrowser } from './utils';
 import { SceneElement } from '@easterngraphics/wcf/modules/core/mdl';
 export class App {
-    private readonly DEFAULT_GATEKEEPER_ID: string = '5a969885660e5';
+    private readonly DEFAULT_GATEKEEPER_ID: string = '602e4ed81e4e3';
     private gatekeeperId: string | undefined;
     private session: eaiws.EaiwsSession;
     private basketUI: BasketUI;
@@ -111,9 +111,9 @@ export class App {
             this.articleManager,
             this.onLoadFile.bind(this)
         );
-        if (this.gatekeeperId === this.DEFAULT_GATEKEEPER_ID) {
-            await this.insertInitialArticle();
-        }
+        // if (this.gatekeeperId === this.DEFAULT_GATEKEEPER_ID) {
+        //     await this.insertInitialArticle();
+        // }
         ProgressUI.endLoading();
     }
 
@@ -129,7 +129,7 @@ export class App {
         if (useStartup) {
             return this.createSessionWithStartup(baseUrl, startup);
         }
-        this.gatekeeperId = this.getFromUrlOrPrompt('gatekeeper_id', this.DEFAULT_GATEKEEPER_ID);
+        //this.gatekeeperId = this.getFromUrlOrPrompt('gatekeeper_id', this.DEFAULT_GATEKEEPER_ID);
         return this.createSessionWithGatekeeperId(this.gatekeeperId);
     }
 
@@ -205,7 +205,17 @@ export class App {
         return defaultValue;
     }
 
-    private async onInsertCatalogArticle(article: catalog.ArticleCatalogItem): Promise<void> {
+    private async onInsertCatalogArticle(article: catalog.ArticleCatalogItem | null, justCleanScene: boolean = false): Promise<void> {
+        if (justCleanScene) {
+            await this.removeAllElements();
+            return;
+        }
+
+        if (article == null) {
+            console.warn('App::onInsertCatalogArticle - article is null');
+            return;
+        }
+
         console.log('App::onInsertCatalogArticle', article);
         ProgressUI.beginLoading();
         await this.removeAllElements();
@@ -213,6 +223,7 @@ export class App {
         const element: cf.MainArticleElement = await this.articleManager.insertArticle(article);
         this.coreApp.model.addElement(element); // we need to add it also to the model manager, or we wont see the new article
         this.coreApp.model.setSelection([element]);
+
         this.viewerUI.resetCamera();
         this.viewerUI.allowMainArticleSelection(this.coreApp.model.elements.length > 1);
         await this.basketUI.updateBasket();
@@ -296,24 +307,24 @@ export class App {
      *
      * If you want to insert a more complex article with sub articles, you could save an .obk and load it on startup.
      */
-    private async insertInitialArticle(): Promise<void> {
-        const searchParameterSet: catalog.SearchArticleParameterSet = new catalog.SearchArticleParameterSet();
-        searchParameterSet.catalogIds = ['egroffice:0'];
-        searchParameterSet.baseArticleNumber = '4520';
-        searchParameterSet.numberOfHits = 1;
-        const lookupOptions: catalog.LookupOptions = new catalog.LookupOptions();
-        lookupOptions.displayMode = 'All';
-        const foundItems: catalog.TopCatalogItems | undefined = await this.session.catalog.searchArticle(searchParameterSet, lookupOptions);
-        const item: catalog.CatalogItem | undefined = foundItems?.scoredItems[0]?.item;
-        if (item instanceof catalog.ArticleCatalogItem) {
-            // to insert a specific variant, we set the variant code here
-            item.varCodeType = 'OFML';
-            item.variantCode = 'Polster.Ausf=13;Armlehne.Visible=1;Gestell.FootMat=82';
-            await this.onInsertCatalogArticle(item);
-        } else {
-            alert('Article could not be found.');
-        }
-    }
+    // private async insertInitialArticle(): Promise<void> {
+    //     const searchParameterSet: catalog.SearchArticleParameterSet = new catalog.SearchArticleParameterSet();
+    //     searchParameterSet.catalogIds = ['egroffice:0'];
+    //     searchParameterSet.baseArticleNumber = '4520';
+    //     searchParameterSet.numberOfHits = 1;
+    //     const lookupOptions: catalog.LookupOptions = new catalog.LookupOptions();
+    //     lookupOptions.displayMode = 'All';
+    //     const foundItems: catalog.TopCatalogItems | undefined = await this.session.catalog.searchArticle(searchParameterSet, lookupOptions);
+    //     const item: catalog.CatalogItem | undefined = foundItems?.scoredItems[0]?.item;
+    //     if (item instanceof catalog.ArticleCatalogItem) {
+    //         // to insert a specific variant, we set the variant code here
+    //         item.varCodeType = 'OFML';
+    //         item.variantCode = 'Polster.Ausf=13;Armlehne.Visible=1;Gestell.FootMat=82';
+    //         await this.onInsertCatalogArticle(item);
+    //     } else {
+    //         alert('Article could not be found.');
+    //     }
+    // }
     /**
      * This shows how to insert initially a .pec container.
      */
