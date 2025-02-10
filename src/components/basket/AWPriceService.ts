@@ -17,8 +17,10 @@ export interface AWPriceServiceResponse {
  */
 export class AWPriceService {
   private axiosInstance: AxiosInstance;
-  private static AW_PRICES_ENDPOINT = '/en/quoter/ajax/priceservice/';
-  private static AW_BASE_URL = 'https://staging-5em2ouy-2qy5gku52uav2.eu-3.magentosite.cloud/en/quoter/ajax/priceservice/';
+  private static AW_PRICES_ENDPOINT = '/es/quoter/ajax/priceservice/';
+  // private static AW_BASE_URL = 'https://development-q5nzhaa-2qy5gku52uav2.eu-3.magentosite.cloud/es/';
+  
+  private static AW_BASE_URL = 'https://staging-5em2ouy-2qy5gku52uav2.eu-3.magentosite.cloud/';
   /**
    * @param baseURL - La URL base del servicio (por defecto se utiliza la URL de production)
    */

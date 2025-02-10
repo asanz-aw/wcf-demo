@@ -321,6 +321,14 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
  
     private async getOneProduct(sku: string): Promise<void> {      
     
+    const response = await fetch(`http://localhost:13000/precio/${sku}`);
+    const priceData = await response.json();
+ 
+   
+
+
+  
+
       
         // Se configura el parámetro de búsqueda (se asume que catalogPath[0] ya está definido)
         const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
@@ -374,11 +382,19 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
                         //  console.log(variantCodeParts);
                           let serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
                           if (serieValue === 'N/A') {
-                              serieValue = variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A';
+                              serieValue = "_" + (variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A');
                           }
-                          console.log(`SKU: ${sku} - Serie Value: ${serieValue.toString()} - Price: ${price}`);
+
+
+                          const priceFromData = priceData.find((data: any) => data[serieValue] !== undefined)?.[serieValue] ?? "Price not available";
+                          const formattedPrice = price.toString().replace(",00€", "");
+                          const isEqual = formattedPrice.toString() === priceFromData.toString() ? "✅" : "❌";
+
+                          console.log(`SKU: ${sku} - Serie Value: ${serieValue.toString()} - Price: ${formattedPrice} - Price from Data: ${priceFromData} - Equal: ${isEqual}`);
+
+ 
                           // Agrega una fila a la tabla con los datos
-                          this.addPriceRow(this.pricesTable, sku, serieValue, price.toString());
+                             this.addPriceRow(this.pricesTable, sku, serieValue, formattedPrice, priceFromData, isEqual);
                         
                         }
                         const propsAfterOption = await element.getProperties(); 
@@ -421,9 +437,20 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
                                         if (serieValue === 'N/A') {
                                             serieValue = variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A';
                                         }
-                                        console.log(`SKU: ${sku} - Serie Value: ${serieValue.toString()} - Price: ${price}`);
+
+
+                                        const priceFromData = priceData.find((data: any) => data[serieValue] !== undefined)?.[serieValue] ?? "Price not available";
+                                        const formattedPrice = price.toString().replace(",00€", "");
+                                        const isEqual = formattedPrice.toString() === priceFromData.toString() ? "✅" : "❌";
+
+                                        console.log(`SKU: ${sku} - Serie Value: ${serieValue.toString()} - Price: ${formattedPrice} - Price from Data: ${priceFromData} - Equal: ${isEqual}`);
+
                                         // Agrega una fila a la tabla con los datos
-                                        this.addPriceRow(this.pricesTable, sku, serieValue, price.toString());
+                                      //  this.addPriceRowWithComparison(this.pricesTable, sku, serieValue, price.toString(), priceFromData.toString(), isEqual);
+
+                                       
+                                        // Agrega una fila a la tabla con los datos
+                                        this.addPriceRow(this.pricesTable, sku, serieValue, formattedPrice, priceFromData, isEqual);
                                       }
                                     }
                                   }
@@ -489,6 +516,8 @@ private createPricesTable(): HTMLTableElement {
         <th>SKU</th>
         <th>Serie</th>
         <th>Precio</th>
+          <th>SAP</th>
+            <th>Igual</th>
       </tr>
     `;
     table.appendChild(thead);
@@ -507,7 +536,7 @@ private createPricesTable(): HTMLTableElement {
    * @param variantCode El código de variante (o serie) generado.
    * @param price El precio obtenido.
    */
-  private addPriceRow(table: HTMLTableElement, sku: string, variantCode: string, price: string): void {
+  private addPriceRow(table: HTMLTableElement, sku: string, variantCode: string, price: string, sapPrice: string, isEqueal: string ): void {
     const tbody = table.querySelector("tbody");
     if (!tbody) return;
     
@@ -524,6 +553,12 @@ private createPricesTable(): HTMLTableElement {
     const priceCell = document.createElement("td");
     priceCell.innerText = price;
     row.appendChild(priceCell);
+    const priceSapCell = document.createElement("td");
+    priceSapCell.innerText = sapPrice;
+    row.appendChild(priceSapCell);
+    const isEqualPriceCell = document.createElement("td");
+    isEqualPriceCell.innerText = isEqueal;
+    row.appendChild(isEqualPriceCell);
   
     tbody.appendChild(row);
   }
