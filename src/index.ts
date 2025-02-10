@@ -26,7 +26,7 @@ import { HtmlUtils, isIOSBrowser } from './utils';
 import { SceneElement } from '@easterngraphics/wcf/modules/core/mdl';
 export class App {
     private readonly DEFAULT_GATEKEEPER_ID: string = '602e4ed81e4e3';
-    private gatekeeperId: string | undefined;
+    private gatekeeperId: string = this.DEFAULT_GATEKEEPER_ID;
     private session: eaiws.EaiwsSession;
     private basketUI: BasketUI;
     private viewerUI: ViewerUI;
