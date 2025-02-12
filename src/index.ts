@@ -82,7 +82,7 @@ export class App {
         this.catalogUI = new CatalogUI(
             HtmlUtils.getNotNullElementById('catalog'),
             HtmlUtils.getNotNullElementById('property-editor'),
-            HtmlUtils.getNotNullElementById('test'), 
+            HtmlUtils.getNotNullElementById('resultados'), 
             this.session.catalog,
             this.onInsertCatalogArticle.bind(this),
             this.onInsertCatalogContainer.bind(this),

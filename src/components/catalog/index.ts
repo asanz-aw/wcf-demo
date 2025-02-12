@@ -26,6 +26,8 @@ export class CatalogUI {
     private searchBar: HTMLDivElement;
     private readonly lookupOptions: catalog.LookupOptions;
     private pricesTable: HTMLTableElement;
+    
+
   private priceService:AWPriceService  = new AWPriceService();
     constructor(
         htmlContainer: HTMLElement,
@@ -82,7 +84,9 @@ export class CatalogUI {
         }
 
         HtmlUtils.removeAllChildren(this.htmlContainerTestResults);
-        const copyButton = this.createCopyButton();
+        const copyButton = this.createCopyButton(false);
+        const copyButtonSummary = this.createCopyButton(true);
+        this.htmlContainerTestResultsSummary.appendChild(copyButtonSummary);
         this.htmlContainerTestResults.appendChild(copyButton);
 
         const skus = inputField.value.split(',');
@@ -385,7 +389,7 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
            
         const isEqual = price.toString() === priceFromData.toString() ? "✅" : "❌";
     
-        if (!isEqual) {
+        if (isEqual === "❌") {
           priceErrors.push({ sku, variantCode: newVariantCode, price: price.toString(), sapPrice: priceFromData });
           console.log(`SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price.toString()} - Price from Data: ${priceFromData} - Equal: ${isEqual}`);
           console.log(`Variant Code: ${newVariantCode}`);
@@ -481,7 +485,7 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
       this.htmlContainerTestResultsSummary.appendChild(summarySection);
 
       const summaryTitle = document.createElement("h3");
-      summaryTitle.innerText = "Summary";
+      summaryTitle.innerText = `Summary for SKU: ${sku}`;
       summarySection.appendChild(summaryTitle);
 
       const summaryContent = document.createElement("div");
@@ -554,19 +558,26 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
 /**
  * Crea un botón para copiar toda la tabla de precios.
  */
-private createCopyButton(): HTMLButtonElement {
+private createCopyButton(copyType: boolean): HTMLButtonElement {
   const button = document.createElement("button");
   button.innerText = "Copy Results";
-  button.onclick = this.copyTableToClipboard.bind(this);
+  button.onclick = () => this.copyTableToClipboard(copyType);
+  return button;
+}
+
+private createCopySummaryButton(copyType: boolean): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.innerText = "Copy Summary";
+  button.onclick = () => this.copyTableToClipboard(copyType);
   return button;
 }
 
 /**
  * Copia el contenido de la tabla de precios al portapapeles.
  */
-private copyTableToClipboard(): void {
-  const table = this.htmlContainerTestResults.querySelector(".prices-table");
+private copyTableToClipboard(copyType: boolean): void {
   
+  const table = this.htmlContainerTestResults.querySelector(copyType ? ".resultados" : ".prices-table");
   const tableHtml = table?.outerHTML ?? '';
   navigator.clipboard.writeText(tableHtml).then(() => {
   //  alert("Table copied to clipboard!");

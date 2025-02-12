@@ -80,6 +80,33 @@
       background-color: #f0f0f0;
       border: 1px solid #ccc;
     }
+
+    /* Main: dos columnas para property-editor y resultados */
+.main {
+  display: flex;
+}
+
+/* Asignamos al Property Editor un ancho fijo del 40% */
+#property-editor {
+  flex: 0 0 40%; /* No crece ni se reduce, con base del 40% */
+  padding: 10px;
+  border-right: 1px solid #ccc;
+}
+
+/* Asignamos a Resultados un ancho fijo del 60% */
+#resultados {
+  flex: 0 0 60%; /* Ancho fijo del 60% */
+  padding: 10px;
+  overflow-x: hidden; /* Bloquea el scroll horizontal */
+  overflow-y: auto;   /* Permite scroll vertical si es necesario */
+  word-wrap: break-word; /* Fuerza el ajuste de palabras largas */
+}
+
+#property-editor,
+#resultados {
+  overflow: auto;
+}
+
   </style>
 
   <script defer src="main.js" type="text/javascript"></script>
