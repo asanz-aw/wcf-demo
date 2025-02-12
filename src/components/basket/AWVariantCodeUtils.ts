@@ -25,11 +25,32 @@ export default class AWVariantCodeUtils {
      * @returns A Promise that resolves to the concatenated variant code string.
      */
     public static async createFromArticle(article: cf.ArticleElement): Promise<string> {
+      // console.log('Article:', article);
+
+      // const itemProperties: basket.ItemProperties = await article.getItemProperties();
+      // console.log('Item Properties:', itemProperties);
+
+      // const itemData: basket.ArticleData = await article.getArticleData();
+      // console.log('Item Data:', itemData);
+
+      // console.log('Item Properties Article:', itemProperties.article);
+      // console.log('Item Properties Properties:', itemProperties);
+
+      // //console.log('Item Data Properties:', itemData.properties);
+
+      // itemData.properties?.forEach((property) => {
+      //   console.log('Property:', property.propName);
+      //   console.log('Property:', property);
+      // });
+
+      
+
+
       const itemProperties: basket.ItemProperties = await article.getItemProperties();
       const itemData: basket.ArticleData = await article.getArticleData();
       return this.createVariantCode(itemProperties, itemData);
     }
-  
+    
     /**
      * Creates a variant code string from item properties and article data.
      * @param itemProperties - The item properties containing variant codes.
@@ -53,8 +74,6 @@ export default class AWVariantCodeUtils {
         ...itemDataVariantArray,
       ]);
       
- 
-
 
       uniqueVariantProperties.forEach((value) => {
         if (
@@ -66,14 +85,12 @@ export default class AWVariantCodeUtils {
           value.startsWith('AW_TAPICERIA_ARP.AWTAPIZ') ||
           value.startsWith('AW_TAPICERIA_ASP.AWTAPIZ') ||
           value.startsWith('AW_BZT_TAP.AWTAPIZ_BZ') 
-          
-          
-    
         ) {
           uniqueVariantProperties.delete(value);
         }
       });
 
+      
       const allValuesString = Array.from(uniqueVariantProperties).join(this.DELIMITER);
    
       return allValuesString;

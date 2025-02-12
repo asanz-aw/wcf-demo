@@ -2,39 +2,114 @@
 <html lang="en">
 
 <head>
-    <title>wcf-dev-example</title>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta charset="UTF-8" />
+  <title>wcf-dev-example</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
-    <meta charset="utf-8" />
+  <!-- w-cf module styles -->
+  <link rel="stylesheet" href="w-cf/styles/core.css" type="text/css" />
+  <link rel="stylesheet" href="w-cf/styles/cf.css" type="text/css" />
 
-    <!-- w-cf module styles -->
-    <link rel="stylesheet" href="w-cf/styles/core.css" type="text/css" />
-    <link rel="stylesheet" href="w-cf/styles/cf.css" type="text/css" />
+  <!-- app -->
+  <link rel="stylesheet" href="main.css" type="text/css" />
 
-    <!-- app -->
-    <link rel="stylesheet" href="main.css" type="text/css" />
-    <script defer src="main.js" type="text/javascript"></script>
+  <!-- Estilos adicionales -->
+  <style>
+    html,
+    body,
+    #app-container {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header,
+    .test,
+    .main,
+    .footer {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Estilos para los contenedores internos */
+    #catalog,
+    #property-editor,
+    #resultados,
+    #viewer,
+    #basket,
+    #persistence,
+    #oap {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Footer: basket a la izquierda y viewer a la derecha */
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+    }
+
+    /* Main: dos columnas para property-editor y resultados */
+    .main {
+      display: flex;
+    }
+
+    /* Cada columna ocupa el 50% del ancho; ajustar si es necesario */
+    #property-editor,
+    #resultados {
+      flex: 1;
+      padding: 10px;
+    }
+
+    /* Opcional: separación visual entre columnas */
+    #property-editor {
+      border-right: 1px solid #ccc;
+    }
+    .catalog-items {
+      margin-top: 20px;
+      /* Puedes agregar otros estilos si es necesario */
+    }
+    .catalog-search {
+      height: 30px;
+      /* Otros estilos opcionales, por ejemplo: */
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+    }
+  </style>
+
+  <script defer src="main.js" type="text/javascript"></script>
 </head>
 
 <body>
-    <div id="app-container">
-        <div id="progress">
-            <div class="loader"></div>
-        </div>
-        <div class="header">
-            <div id="catalog"></div>
-        </div>
-        <div class="main">
-            <div id="viewer"></div>
-            <div id="property-editor"></div>
-        </div>
-        <div class="footer">
-            <div id="basket"></div>
-            <div id="export"></div>
-            <div id="persistence"></div>
-        </div>
-        <div id="oap"></div>
+  <div id="app-container">
+    <div id="progress">
+      <div class="loader"></div>
     </div>
+    <div class="header">
+      <div id="catalog">Catalog</div>
+    </div>
+    
+    <!-- Nueva sección vacía denominada test -->
+    <div class="test" id="test">
+
+    </div>
+    
+    <div class="main">
+      <div id="property-editor">Property Editor</div>
+      <div id="resultados">Resultados</div>
+    </div>
+    <div class="footer">
+      <div id="basket">Basket</div>
+      <div id="viewer">Viewer</div>
+      <!-- <div id="persistence"></div> -->
+    </div>
+    <div id="oap"></div>
+  </div>
 </body>
 
 </html>

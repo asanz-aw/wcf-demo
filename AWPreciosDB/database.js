@@ -28,7 +28,10 @@ class SQLServerConnector {
 
             // Convertir la fila en un array de objetos { columna: valor }
             const row = result.recordset[0];
-            const formattedResult = Object.keys(row).map((key) => ({ [key]: row[key] }));
+            const formattedResult = Object.keys(row).map((key) => {
+                const formattedKey = key.startsWith('_') ? key.replace(/^_/, '') : key;
+                return { [formattedKey]: row[key] };
+            });
             
             return formattedResult;
         } catch (error) {

@@ -21,6 +21,7 @@ export class CatalogUI {
     private articleManager: any; // add a property for articleManager
     private htmlContainer: HTMLElement;
     private htmlContainerTestResults: HTMLElement;
+    private htmlContainerTestResultsSummary: HTMLElement;
     private itemsContainer: HTMLElement;
     private searchBar: HTMLDivElement;
     private readonly lookupOptions: catalog.LookupOptions;
@@ -29,6 +30,7 @@ export class CatalogUI {
     constructor(
         htmlContainer: HTMLElement,
         htmlContainerTestResults: HTMLElement,
+        htmlContainerTestResultsSummary: HTMLElement,
         catalogService: catalog.CatalogService,
         onInsertArticle: (item: catalog.ArticleCatalogItem) => Promise<void>,
         onInsertContainer: (item: catalog.CatalogItem) => Promise<void>,
@@ -41,6 +43,7 @@ export class CatalogUI {
         this.articleManager = articleManager; // add a property for articleManager
         this.htmlContainer = htmlContainer;
         this.htmlContainerTestResults = htmlContainerTestResults;
+        this.htmlContainerTestResultsSummary = htmlContainerTestResultsSummary;
         this.lookupOptions = new catalog.LookupOptions();
         this.lookupOptions.itemTypes = [
             'Article',
@@ -319,139 +322,138 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
   this.playWithCatalogItem(article);    
     }
  
-    private async getOneProduct(sku: string): Promise<void> {      
+    private async getOneProduct(sku: string): Promise<void> {
+      // Recupera los datos de precios de la API
+      const response = await fetch(`http://localhost:13000/precio/${sku}`);
+      const priceData = await response.json();
     
-    const response = await fetch(`http://localhost:13000/precio/${sku}`);
-    const priceData = await response.json();
- 
-   
+      // Configura los parámetros de búsqueda
+      const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
+      parameterSet.catalogIds = [this.catalogPath[0]];
+      parameterSet.query = sku;
+      parameterSet.numberOfHits = 100;
+      parameterSet.flags = ['FolderText'];
+      const foundItems: catalog.TopCatalogItems | undefined = await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
+    
+      // Constantes para las propiedades y prefijos
+      const AWD_TAPICERIA = "[Character]AWD_AWOPCION__TAPICERIA";
+      const AWD_SERIE_TAPICERIA = "[Character]AWD_LISTAS__TAPICERIA";
+      const prefix_SERIE_TAP = "AWSERIE_ASIE";
+    
+      // Añade la tabla de resultados al contenedor
+      this.htmlContainerTestResults.appendChild(this.pricesTable);
+    
+      // Inicializa los contadores para coincidencias y discrepancias
+      let priceMatches = 0;
+      let priceDiscrepancies = 0;
+    
+      // Array to store price errors
+      const priceErrors: { sku: string, variantCode: string, price: string, sapPrice: string }[] = [];
 
-
-  
-
-      
-        // Se configura el parámetro de búsqueda (se asume que catalogPath[0] ya está definido)
-        const parameterSet: catalog.SearchParameterSet = new catalog.SearchParameterSet();
-        parameterSet.catalogIds = [this.catalogPath[0]];
-        parameterSet.query = sku;
-        parameterSet.numberOfHits = 100;
-        parameterSet.flags = ['FolderText'];
-        const foundItems: catalog.TopCatalogItems | undefined = await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
+      // Función auxiliar para procesar la variante, comparar precios y actualizar la tabla y contadores
+      const processVariant = async (element: cf.MainArticleElement): Promise<void> => {
+        // Crea el código de variante según el artículo y las opciones seleccionadas
+        const newVariantCode = await AWVariantCodeUtils.createFromArticle(element);
+        // Recupera el precio según el SKU y el código de variante
+        const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
+        const price = priceResponse?.price ?? "Price not available";
         
-        // Constantes para las propiedades
-        const AWD_TAPICERIA = "[Character]AWD_AWOPCION__TAPICERIA"; // Propiedad de opciones de tapicería
-        const AWD_SERIE_TAPICERIA = "[Character]AWD_LISTAS__TAPICERIA";
-        const prefix_SERIE_TAP = "AWSERIE_ASIE"; // Prefijo para identificar la propiedad de serie en la tabla
-     
-        // Crea la tabla de precios y la añade al contenedor
-        
-        this.htmlContainerTestResults.appendChild(this.pricesTable);
+        // Extrae el valor de la serie a partir del código de variante
+        const variantCodeParts = newVariantCode.split(';');
+        let serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
+        if (serieValue === 'N/A') {
+          serieValue = (variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A');
+            if (!isNaN(Number(serieValue)) && Number(serieValue) >= 1 && Number(serieValue) <= 11 || serieValue === 'Z') {
+            // if (["0","1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"].includes(serieValue)) {
+            //    serieValue = `_${serieValue}`;
+            // }
+          }
+
+        }
+    
+        // Busca en los datos externos el precio asociado a la serie
+        let priceFromData = priceData.find((data: any) => data[serieValue] !== undefined)?.[serieValue] ?? "SAP not available";
+        if (priceFromData !== "SAP not available") {
+            if (priceFromData.toString().includes('.')) {
+              const parts = priceFromData.toString().split('.');
+              parts[1] = parts[1].padEnd(3, '0');
+              priceFromData = parts.join('.') + ",00€";
+            } else {
+              priceFromData += ",00€";
+            }
+        }
+           
+        const isEqual = price.toString() === priceFromData.toString() ? "✅" : "❌";
+    
+        if (!isEqual) {
+          priceErrors.push({ sku, variantCode: newVariantCode, price: price.toString(), sapPrice: priceFromData });
+          console.log(`SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price.toString()} - Price from Data: ${priceFromData} - Equal: ${isEqual}`);
+          console.log(`Variant Code: ${newVariantCode}`);
+        }
       
-        if (foundItems != null) {
-          for (const scoredItem of foundItems.scoredItems) {
-            const item = scoredItem.item;
-            if (item instanceof catalog.ArticleCatalogItem) {
-              // Inserta el artículo en el articleManager
-              const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
-              const articleProperties = await element.getProperties();
-            
-              if (articleProperties != null) {
-                console.log(articleProperties);
-                for (const property of articleProperties) {
-                  
-                  if (property.key === AWD_TAPICERIA || property.key === AWD_SERIE_TAPICERIA) {  // Se ha encontrado la propiedad de tapicería
-                    // Obtiene las opciones disponibles para tapicería
-                    const choices = await property.getChoices();
-                    console.log(`Propiedad: ${AWD_TAPICERIA}`);
-                    console.log(choices);
-                    if (choices != null && choices.length > 0) {
-                      // Itera desde el índice 1 (omitiendo el valor vacío en la posición 0)
-                      for (let option = 0; option < choices.length; option++) {
-                        // Selecciona la opción de tapicería (por ejemplo, ASP o ARP)
-                        await property.setValue(choices[option].value);
-                        console.log(`Opción de tapicería seleccionada: ${choices[option].value}`);
-                        if (choices[option].value === 'STAP') {
-                          //serie z! 
-                          const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
-                          // Recupera el precio utilizando el SKU y el nuevo código de variante
-                          const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
-                         const price = priceResponse?.price ?? "Price not available";
-                          // Extrae el valor de la serie a partir del código de variante
-                          const variantCodeParts = newVariantCode.split(';');
-                        
-                        //  console.log(variantCodeParts);
-                          let serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
-                          if (serieValue === 'N/A') {
-                              serieValue = "_" + (variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A');
-                          }
-
-
-                          const priceFromData = priceData.find((data: any) => data[serieValue] !== undefined)?.[serieValue] ?? "Price not available";
-                          const formattedPrice = price.toString().replace(",00€", "");
-                          const isEqual = formattedPrice.toString() === priceFromData.toString() ? "✅" : "❌";
-
-                          console.log(`SKU: ${sku} - Serie Value: ${serieValue.toString()} - Price: ${formattedPrice} - Price from Data: ${priceFromData} - Equal: ${isEqual}`);
-
- 
-                          // Agrega una fila a la tabla con los datos
-                             this.addPriceRow(this.pricesTable, sku, serieValue, formattedPrice, priceFromData, isEqual);
-                        
-                        }
-                        const propsAfterOption = await element.getProperties(); 
-                        if (propsAfterOption != null) {
-                          // Busca la propiedad de material (por ejemplo, tela o cuero)
-                          // Se asume que la key del material empieza con "[Character]AWD_LISTAS" y termina en "TAPICERIA"
-                          const materialProperty = propsAfterOption.find(
-                            prop => prop.key.startsWith("[Character]AWD_LISTAS") && prop.key.endsWith("TAPICERIA")
-                          );
-                          if (materialProperty) {
-                            const materialChoices = await materialProperty.getChoices();
-                            if (materialChoices != null && materialChoices.length > 0) {
-                              for (const material of materialChoices) {
-                                // Selecciona la opción de material
-                                await materialProperty.setValue(material.value);
-                                // Recupera las propiedades actualizadas tras seleccionar el material
-                                const propsAfterMaterial = await element.getProperties(); 
-                                if (propsAfterMaterial != null) {
-                                  // Busca la propiedad de serie
-                                  // Se asume que la key de la serie empieza con "[Character]AWD_SERIE" y termina en "TAPICERIA"
-                                  const serieProperty = propsAfterMaterial.find(
-                                    prop => prop.key.startsWith("[Character]AWD_SERIE") && prop.key.endsWith("TAPICERIA")
-                                  );
-                                  if (serieProperty) {
-                                    const serieChoices = await serieProperty.getChoices();
-                                    if (serieChoices != null) {
-                                      for (const serie of serieChoices) {
-                                        // Selecciona la opción de serie
-                                        await serieProperty.setValue(serie.value);           
-                                        // Crea el código de variante según el artículo y las opciones seleccionadas
-                                        const newVariantCode = await AWVariantCodeUtils.createFromArticle(element); 
-                                        // Recupera el precio utilizando el SKU y el nuevo código de variante
-                                        const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
-                                       const price = priceResponse?.price ?? "Price not available";
-                                        // Extrae el valor de la serie a partir del código de variante
-                                        const variantCodeParts = newVariantCode.split(';');
-                                      
-                                      //  console.log(variantCodeParts);
-                                        let serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
-                                        if (serieValue === 'N/A') {
-                                            serieValue = variantCodeParts.find(part => part.includes('AWSERIE'))?.split('=')[1] ?? 'N/A';
-                                        }
-
-
-                                        const priceFromData = priceData.find((data: any) => data[serieValue] !== undefined)?.[serieValue] ?? "Price not available";
-                                        const formattedPrice = price.toString().replace(",00€", "");
-                                        const isEqual = formattedPrice.toString() === priceFromData.toString() ? "✅" : "❌";
-
-                                        console.log(`SKU: ${sku} - Serie Value: ${serieValue.toString()} - Price: ${formattedPrice} - Price from Data: ${priceFromData} - Equal: ${isEqual}`);
-
-                                        // Agrega una fila a la tabla con los datos
-                                      //  this.addPriceRowWithComparison(this.pricesTable, sku, serieValue, price.toString(), priceFromData.toString(), isEqual);
-
-                                       
-                                        // Agrega una fila a la tabla con los datos
-                                        this.addPriceRow(this.pricesTable, sku, serieValue, formattedPrice, priceFromData, isEqual);
-                                      }
+        // Añade la fila a la tabla de resultados
+        this.addPriceRow(this.pricesTable, sku, serieValue, price.toString(), priceFromData, isEqual);
+    
+        // Actualiza los contadores según la comparación
+        if (isEqual === "✅") {
+          priceMatches++;
+        } else {
+          priceDiscrepancies++;
+        }
+      };
+    
+      // Si se han encontrado artículos, procesa cada uno
+      if (foundItems) {
+        for (const scoredItem of foundItems.scoredItems) {
+          const item = scoredItem.item;
+          if (item instanceof catalog.ArticleCatalogItem) {
+            // Inserta el artículo y obtiene sus propiedades
+            const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
+            const articleProperties = await element.getProperties();
+            //TEST-mesas  console.log(`Opción seleccionada: ${choices[i].value}`);
+            if (articleProperties) {
+            //TEST-mesas  console.log(articleProperties);
+              for (const property of articleProperties) {
+                // Procesa únicamente la propiedad de tapicería (o la de serie de tapicería)
+                if (property.key === AWD_TAPICERIA || property.key === AWD_SERIE_TAPICERIA) {
+                  const choices = await property.getChoices();
+              //TEST-mesas    console.log(`Propiedad: ${property.key}`);
+                //TEST-mesas  console.log(choices);
+                  if (choices && choices.length > 0) {
+                    // Itera las opciones de la propiedad
+                    
+                    for (let i = (choices.length === 2) ? 1 : 0; i < choices.length; i++) {
+                      await property.setValue(choices[i].value);
+    
+                      // Si la opción es 'STAP', se procesa la variante
+                      if (choices[i].value === 'STAP') {
+                        await processVariant(element);
+                      }
+    
+                      // Actualiza las propiedades tras seleccionar la opción
+                      const propsAfterOption = await element.getProperties();
+                      if (propsAfterOption) {
+                        // Busca la propiedad de material (por ejemplo, tela o cuero)
+                        const materialProperty = propsAfterOption.find(
+                          prop => prop.key.startsWith("[Character]AWD_LISTAS") && prop.key.endsWith("TAPICERIA")
+                        );
+                        if (materialProperty) {
+                          const materialChoices = await materialProperty.getChoices();
+                          if (materialChoices && materialChoices.length > 0) {
+                            for (const material of materialChoices) {
+                              await materialProperty.setValue(material.value);
+                              const propsAfterMaterial = await element.getProperties();
+                              if (propsAfterMaterial) {
+                                // Busca la propiedad de serie
+                                const serieProperty = propsAfterMaterial.find(
+                                  prop => prop.key.startsWith("[Character]AWD_SERIE") && prop.key.endsWith("TAPICERIA")
+                                );
+                                if (serieProperty) {
+                                  const serieChoices = await serieProperty.getChoices();
+                                  if (serieChoices) {
+                                    for (const serie of serieChoices) {
+                                      await serieProperty.setValue(serie.value);
+                                      await processVariant(element);
                                     }
                                   }
                                 }
@@ -468,13 +470,85 @@ private async playWithCatalogItem(item:catalog.ArticleCatalogItem) {
           }
         }
       }
-      
- 
+    
+      // Muestra al final la cantidad de coincidencias y discrepancias por consola
+      console.log(`Total de coincidencias de precio: ${priceMatches}`);
+      console.log(`Total de discrepancias: ${priceDiscrepancies}`);
+//----------
+      // Summary section
+      const summarySection = document.createElement("div");
+      summarySection.className = "summary-section";
+      this.htmlContainerTestResultsSummary.appendChild(summarySection);
 
+      const summaryTitle = document.createElement("h3");
+      summaryTitle.innerText = "Summary";
+      summarySection.appendChild(summaryTitle);
 
-      //AW_COLOR_BASE_PATA.LISTAS_COLOR_BASE=CRBSIT;AW_COLOR_BASE_PATA.AWCOLOR_BASE=EPXN;AW_OPC_TAPICERIA.AWOPCION_TAPICERIA=TAP;AW_TAPICERIA_TAP.LISTAS_TAPICERIA=FLEXTAP;AW_TAPICERIA_TAP.SERIE_TAPICERIA=AZ;AW_TAPICERIA_TAP.COLECCION_TAPICERIA=J1;AW_TAPICERIA_TAP.AWTAPIZ_TAP=1715;AW_TACOS.USO_TACOS=DURO;AW_TACOS.MATERIAL_TACOS=PE;AW_TACOS.TAW_LISTAS_TCS4PFS=TS0558;AW_CSP_CAP.AWCOSTURA=NO;AW_PALA.AWPALA=SIN_PALA;AW_LD.AWLD=NO;AW_SERIE_SILLAS.AWSERIE=1;AW_TAPICERIA_TAP.SERIE_COLECCION=1;AW_TAPICERIA_TAP.AWTAPIZ_TAP=_1715
-      
-      
+      const summaryContent = document.createElement("div");
+      summarySection.appendChild(summaryContent);
+
+      const successCount = document.createElement("p");
+      successCount.innerText = `Total Successes: ${priceMatches}`;
+      summaryContent.appendChild(successCount);
+
+      const errorCount = document.createElement("p");
+      errorCount.innerText = `Total Errors: ${priceDiscrepancies}`;
+      summaryContent.appendChild(errorCount);
+
+      if (priceDiscrepancies > 0) {
+        const errorDetails = document.createElement("div");
+        errorDetails.className = "error-details";
+        summaryContent.appendChild(errorDetails);
+
+        const errorTitle = document.createElement("h4");
+        errorTitle.innerText = "Error Details";
+        errorDetails.appendChild(errorTitle);
+
+        const errorTable = document.createElement("table");
+        errorTable.className = "error-table";
+        errorDetails.appendChild(errorTable);
+
+        const errorThead = document.createElement("thead");
+        errorThead.innerHTML = `
+          <tr>
+            <th>SKU</th>
+            <th>Variant Code</th>
+            <th>Price</th>
+            <th>SAP Price</th>
+          </tr>
+        `;
+        errorTable.appendChild(errorThead);
+
+        const errorTbody = document.createElement("tbody");
+        errorTable.appendChild(errorTbody);
+
+        // Add error rows
+        for (const error of priceErrors) {
+          const errorRow = document.createElement("tr");
+
+          const skuCell = document.createElement("td");
+          skuCell.innerText = error.sku;
+          errorRow.appendChild(skuCell);
+
+          const variantCell = document.createElement("td");
+          variantCell.innerText = error.variantCode;
+          errorRow.appendChild(variantCell);
+
+          const priceCell = document.createElement("td");
+          priceCell.innerText = error.price;
+          errorRow.appendChild(priceCell);
+
+          const sapPriceCell = document.createElement("td");
+          sapPriceCell.innerText = error.sapPrice;
+          errorRow.appendChild(sapPriceCell);
+
+          errorTbody.appendChild(errorRow);
+        }
+      }
+//----------
+
+    }
+    
     
 // Dentro de tu clase CatalogUI, agrega estos métodos:
 /**

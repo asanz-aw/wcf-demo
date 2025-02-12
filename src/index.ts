@@ -82,6 +82,7 @@ export class App {
         this.catalogUI = new CatalogUI(
             HtmlUtils.getNotNullElementById('catalog'),
             HtmlUtils.getNotNullElementById('property-editor'),
+            HtmlUtils.getNotNullElementById('test'), 
             this.session.catalog,
             this.onInsertCatalogArticle.bind(this),
             this.onInsertCatalogContainer.bind(this),
@@ -101,16 +102,16 @@ export class App {
             this.articleManager,
             this.onBasketItemClicked.bind(this)
         );
-        this.exportUI = new ExportUI(
+        /*this.exportUI = new ExportUI(
             HtmlUtils.getNotNullElementById('export'),
             this.articleManager,
             this.coreApp.viewer
-        );
-        this.persistenceUI = new PersistenceUI(
+        );*/
+      /*  this.persistenceUI = new PersistenceUI(
             HtmlUtils.getNotNullElementById('persistence'),
             this.articleManager,
             this.onLoadFile.bind(this)
-        );
+        );*/
         // if (this.gatekeeperId === this.DEFAULT_GATEKEEPER_ID) {
         //     await this.insertInitialArticle();
         // }

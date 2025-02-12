@@ -34,8 +34,19 @@ export class PropertyEditorUI {
     
         HtmlUtils.removeAllChildren(this.htmlContainer);
         try {
+         //TEST-mesas   console.log('updatePropertyEditor');
             const propertyClasses: Array<PropertyClass> = await this.propertyProvider.getPropertyClasses();
+        //TEST-mesas   console.log(propertyClasses);
+            
             const properties: Array<Property> = await this.propertyProvider.getProperties();
+
+for (let i = 0; i < properties.length; i++) {
+  //TEST-mesas  console.log("userData");
+    const userData = ArticlePropertyHelpers.GetPropertyUserData(properties[i]);
+   //TEST-mesas console.log(userData);
+}
+
+        //TEST-mesas    console.log(properties);
             const propertyGroups = groupProperties(properties, propertyClasses, { defaultClassName: 'Properties' });
             propertyGroups.forEach((group) => {
                 const htmlPropertyClass: HTMLElement = this.createPropertyClass(group.class);
@@ -48,6 +59,8 @@ export class PropertyEditorUI {
                     htmlPropertyClass.appendChild(this.createProperty(property));
                 });
             })
+
+            
         } catch (e) {
             console.error('failed to get properties', e);
             this.htmlContainer.innerText = 'Migration of article might be required.';
@@ -156,7 +169,7 @@ export class PropertyEditorUI {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-            console.log(this.getPropertyKey(property));
+        //TEST-mesas    console.log(this.getPropertyKey(property));
             await property.setValue(propertyValue.value);
         
             ProgressUI.endLoading();
@@ -187,8 +200,8 @@ export class PropertyEditorUI {
         }
      
         const eaiwsProperty = userData.eaiwsProperty;
-        console.log(eaiwsProperty);
-        console.log(property);
+      //TEST-mesas  console.log(eaiwsProperty);
+     //TEST-mesas   console.log(property);
         const eaiwsArticleData = userData.eaiwsArticleData
         return `${eaiwsArticleData.manufacturerId}_${eaiwsArticleData.seriesId}_${eaiwsProperty.propName}`;
     }
