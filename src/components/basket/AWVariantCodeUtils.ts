@@ -84,7 +84,9 @@ export default class AWVariantCodeUtils {
           value.startsWith('AW_TAPICERIA_ARP.COLECCION')  ||
           value.startsWith('AW_TAPICERIA_ARP.AWTAPIZ') ||
           value.startsWith('AW_TAPICERIA_ASP.AWTAPIZ') ||
-          value.startsWith('AW_BZT_TAP.AWTAPIZ_BZ') 
+          value.startsWith('AW_BZT_TAP.AWTAPIZ_BZ') ||
+          value.startsWith('AW_TAPICERIA.SERIE_TAPICERIA') ||
+          value.startsWith('AW_TAPICERIA_TAP.SERIE_TAPICERIA')
         ) {
           uniqueVariantProperties.delete(value);
         }
