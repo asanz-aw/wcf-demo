@@ -298,7 +298,7 @@ export class CatalogUI {
     console.log("Testing top products for SKU:", sku);
     const foundItems = await this.searchCatalogItems(sku);
     if (!foundItems) return;
-this.printAllProperties(foundItems);
+//this.printAllProperties(foundItems);
     for (const scoredItem of foundItems.scoredItems) {
       const item = scoredItem.item;
       if (item instanceof catalog.ArticleCatalogItem) {
@@ -322,6 +322,7 @@ this.printAllProperties(foundItems);
                 await tipoSobreProperty.setValue(tipoSobreChoice.value);
                 const tipoSobreInfProperty = articleProperties.find( prop => prop.key === "[Character]AWD_AWTIPO__SOBRE__INFERIOR");
                 if (tipoSobreInfProperty) {
+                  console.log("RUTA TABLE --------------------");
                   const tipoSobreInfChoices = await tipoSobreInfProperty.getChoices();
                   if (tipoSobreInfChoices) {
                     for (const tipoSobreInfChoice of tipoSobreInfChoices) {
@@ -330,9 +331,31 @@ this.printAllProperties(foundItems);
                       const awsSeriesMesas = newVariantCode
                         .split(';')
                         .find(part => part.includes('AWSERIES_MESAS'));
-                      console.log("RUTA TABLE --------------------");
-                      console.log(awsSeriesMesas);
-                      console.log(newVariantCode);
+                     
+                      const awsSeriesMesasValue = awsSeriesMesas ? awsSeriesMesas.split('=')[1] : 'N/A';
+                     
+                      const response = await fetch(`http://localhost:13000/precio/${sku}?serie=${awsSeriesMesasValue}`);
+                        const data = await response.json();
+                        let priceSAP = data[0]?.precio ?? "Price not available";
+
+                        const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
+                       
+                        let price = priceResponse?.price ?? "Price not available";
+                        if (typeof price === 'string') {
+                          price = parseFloat(price.replace('€', '').replace(',', '.'));
+                        }
+                        if (typeof priceSAP === 'string') {
+                          priceSAP = parseFloat(priceSAP.replace('€', '').replace(',', '.'));
+                        }
+
+                      price = price.toString().replace(/[,.]/g, '') 
+                      priceSAP = priceSAP.toString().replace(/[,.]/g, '') 
+
+                        const isEqual = price === priceSAP ? "✅" : "❌";
+                        console.log(`SKU: ${sku}, Serie: ${awsSeriesMesasValue}, Price: ${price}, SAP Price: ${priceSAP}, Equal: ${isEqual}`);
+                  
+                      //console.log(awsSeriesMesas);
+                    //  console.log(newVariantCode);
                     }
                   }
                 } else {

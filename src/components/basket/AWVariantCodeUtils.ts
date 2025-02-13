@@ -114,7 +114,7 @@ export default class AWVariantCodeUtils {
       const updatedProperties = Array.from(variantProperties).map(value => {
         if (value.startsWith('AW_CONF_MESAS2.AWSERIES_MESAS')) {
           const originalValue = value.split('=')[1];
-          return `AW_CONF_MESAS2.AWSERIES_MESAS=${seriesMesaInferiorValue}${originalValue}`;
+          return `AW_CONF_MESAS2.AWSERIES_MESAS=${originalValue}${seriesMesaInferiorValue}`;
         }
         return value;
       });
@@ -123,3 +123,4 @@ export default class AWVariantCodeUtils {
     return Array.from(variantProperties).join(this.DELIMITER);
   }
 }
+

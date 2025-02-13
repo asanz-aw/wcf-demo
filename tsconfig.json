@@ -19,7 +19,8 @@
     "types": [],
     "forceConsistentCasingInFileNames": true,
     "importHelpers": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
   },
   "include": [
     "./src/**/*.ts"

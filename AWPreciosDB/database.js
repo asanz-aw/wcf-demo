@@ -1,46 +1,42 @@
-const sql = require('mssql');
+const mysql = require('mysql2/promise');
 
-class SQLServerConnector {
-    constructor() {
-        this.config = {
-            user: 'userapps',
-            password: 'us3r4pps%',
-            server: '192.168.1.39',
-            database: 'apps',
-            options: {
-                encrypt: false, // Cambia a true si usas Azure
-                trustServerCertificate: true
-            }
-        };
+class AWPriceService {
+  constructor() {
+    this.pool = mysql.createPool({
+      host: '192.168.1.30',
+      user: 'configurador',
+      password: 'Zycu26928340',
+      database: 'pricelist',
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    });
+  }
+
+  /**
+   * Obtiene los registros de la tabla "prices" según el modelo, tarifa y serie especificados.
+   *
+   * @param {string} modelo - El modelo del producto.
+   * @param {string} [tarifa='1'] - La tarifa (por defecto '1').
+   * @param {string} serie - La serie.
+   * @returns {Promise<Array<Object>>} - Los registros obtenidos.
+   * @throws {Error} - Si ocurre algún problema durante la consulta.
+   */
+  async fetchPrice(modelo, tarifa = '1', serie) {
+    const query = `
+      SELECT *
+      FROM prices
+      WHERE modelo = ? AND tarifa = ? AND SERIE = ?
+    `;
+
+    try {
+      const [rows] = await this.pool.execute(query, [modelo, tarifa, serie]);
+      return rows;
+    } catch (error) {
+      console.error('Error al obtener el precio del servicio:', error.message);
+      throw new Error(`Error en fetchPrice: ${error.message}`);
     }
-
-    async getModelData(modelo) {
-        try {
-            await sql.connect(this.config);
-            const query = `SELECT TOP (1) * FROM [apps].[dbo].[AW_datos_ES] WHERE Modelo = @modelo`;
-            const request = new sql.Request();
-            request.input('modelo', sql.VarChar, modelo);
-            const result = await request.query(query);
-            
-            if (result.recordset.length === 0) {
-                throw new Error('No se encontraron datos para el modelo especificado.');
-            }
-
-            // Convertir la fila en un array de objetos { columna: valor }
-            const row = result.recordset[0];
-            const formattedResult = Object.keys(row).map((key) => {
-                const formattedKey = key.startsWith('_') ? key.replace(/^_/, '') : key;
-                return { [formattedKey]: row[key] };
-            });
-            
-            return formattedResult;
-        } catch (error) {
-            console.error('Error ejecutando la consulta:', error);
-            throw error;
-        } finally {
-            await sql.close();
-        }
-    }
+  }
 }
 
-module.exports = SQLServerConnector;
+module.exports = { AWPriceService };
