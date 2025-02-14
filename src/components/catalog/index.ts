@@ -50,6 +50,11 @@ export class CatalogUI {
   // Services
   private priceService: AWPriceService = new AWPriceService();
 
+  // Global counters & errors for summary (reset on each search)
+  private globalMatches: number = 0;
+  private globalDiscrepancies: number = 0;
+  private globalPriceErrors: PriceError[] = [];
+
   constructor(
     htmlContainer: HTMLElement,
     htmlContainerTestResults: HTMLElement,
@@ -159,7 +164,7 @@ export class CatalogUI {
   private addPriceRow(
     table: HTMLTableElement,
     sku: string,
-    variantCode: string,
+    variantOrSerie: string,
     price: string,
     sapPrice: string,
     isEqual: string
@@ -168,7 +173,7 @@ export class CatalogUI {
     if (!tbody) return;
 
     const row = document.createElement("tr");
-    [sku, variantCode, price, sapPrice, isEqual].forEach((text) => {
+    [sku, variantOrSerie, price, sapPrice, isEqual].forEach((text) => {
       const cell = document.createElement("td");
       cell.innerText = text;
       row.appendChild(cell);
@@ -200,9 +205,12 @@ export class CatalogUI {
     const query = inputField.value?.trim();
     if (!query) return;
 
-    // Clear previous test results
+    // Reset previous test results and global counters
     HtmlUtils.removeAllChildren(this.htmlContainerTestResults);
     HtmlUtils.removeAllChildren(this.htmlContainerTestResultsSummary);
+    this.globalMatches = 0;
+    this.globalDiscrepancies = 0;
+    this.globalPriceErrors = [];
 
     // Add copy buttons
     const copyButton = this.createCopyButton(false);
@@ -210,9 +218,12 @@ export class CatalogUI {
     this.htmlContainerTestResults.appendChild(copyButton);
     this.htmlContainerTestResultsSummary.appendChild(copyButtonSummary);
 
+    // Create a new prices table and append it to the results container
+    this.pricesTable = this.createPricesTable();
+    this.htmlContainerTestResults.appendChild(this.pricesTable);
+
     // Process one or more SKUs (comma separated)
     const skus = query.toUpperCase().split(',');
-    this.pricesTable = this.createPricesTable();
     for (const sku of skus) {
       const trimmedSku = sku.trim();
       if (!trimmedSku) continue;
@@ -225,6 +236,9 @@ export class CatalogUI {
         await this.getOneProduct(trimmedSku);
       }
     }
+
+    // After processing all SKUs, build the summary section
+    this.buildSummary(query, this.globalMatches, this.globalDiscrepancies, this.globalPriceErrors);
   }
 
   private async onBackClick(): Promise<void> {
@@ -289,27 +303,218 @@ export class CatalogUI {
     return await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Variant Processing & Price Comparison Methods
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Processes variants for a standard product.
+   */
+  private async getOneProduct(sku: string): Promise<void> {
+    try {
+      const priceData = await this.fetchPriceData(sku);
+      const foundItems = await this.searchCatalogItems(sku);
+      const AWD_TAPICERIA = "[Character]AWD_AWOPCION__TAPICERIA";
+      const AWD_SERIE_TAPICERIA = "[Character]AWD_LISTAS__TAPICERIA";
+      const prefix_SERIE_TAP = "AWSERIE_ASIE";
+
+      if (foundItems) {
+        for (const scoredItem of foundItems.scoredItems) {
+          const item = scoredItem.item;
+          if (item instanceof catalog.ArticleCatalogItem) {
+            const element = (await this.articleManager.insertArticle(item)) as cf.MainArticleElement;
+            await this.processPropertyVariants(
+              element,
+              sku,
+              AWD_TAPICERIA,
+              AWD_SERIE_TAPICERIA,
+              prefix_SERIE_TAP,
+              priceData
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error in getOneProduct:", error);
+    }
+  }
+
+  /**
+   * Fetches price data from the external service.
+   */
+  private async fetchPriceData(sku: string): Promise<any> {
+    const response = await fetch(`http://localhost:13000/precio/${sku}`);
+    return await response.json();
+  }
+
+  /**
+   * Processes property variants by iterating over relevant properties and choices.
+   */
+  private async processPropertyVariants(
+    element: cf.MainArticleElement,
+    sku: string,
+    AWD_TAPICERIA: string,
+    AWD_SERIE_TAPICERIA: string,
+    prefix_SERIE_TAP: string,
+    priceData: any
+  ): Promise<void> {
+    const articleProperties = await element.getProperties();
+    if (!articleProperties) return;
+
+    for (const property of articleProperties) {
+      if (property.key === AWD_TAPICERIA || property.key === AWD_SERIE_TAPICERIA) {
+        const choices = await property.getChoices();
+        if (choices && choices.length > 0) {
+          const startIndex = choices.length === 2 ? 1 : 0;
+          for (let i = startIndex; i < choices.length; i++) {
+            await property.setValue(choices[i].value);
+            if (choices[i].value === "STAP") {
+              await this.processVariant(element, sku, priceData, prefix_SERIE_TAP);
+            }
+            const propsAfterOption = await element.getProperties();
+            if (!propsAfterOption) continue;
+            const materialProperty = propsAfterOption.find(
+              (prop) =>
+                prop.key.startsWith("[Character]AWD_LISTAS") &&
+                prop.key.endsWith("TAPICERIA")
+            );
+            if (materialProperty) {
+              const materialChoices = await materialProperty.getChoices();
+              if (materialChoices && materialChoices.length > 0) {
+                for (const material of materialChoices) {
+                  await materialProperty.setValue(material.value);
+                  const propsAfterMaterial = await element.getProperties();
+                  if (!propsAfterMaterial) continue;
+                  const serieProperty = propsAfterMaterial.find(
+                    (prop) =>
+                      prop.key.startsWith("[Character]AWD_SERIE") &&
+                      prop.key.endsWith("TAPICERIA")
+                  );
+                  if (serieProperty) {
+                    const serieChoices = await serieProperty.getChoices();
+                    if (serieChoices) {
+                      for (const serie of serieChoices) {
+                        await serieProperty.setValue(serie.value);
+                        await this.processVariant(element, sku, priceData, prefix_SERIE_TAP);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Processes a single variant, compares prices, adds a row to the results table,
+   * and updates global counters and error details.
+   */
+  private async processVariant(
+    element: cf.MainArticleElement,
+    sku: string,
+    priceData: any,
+    prefix_SERIE_TAP: string
+  ): Promise<void> {
+    const newVariantCode = await AWVariantCodeUtils.createFromArticle(element);
+    const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
+    const price = priceResponse?.price ?? "Price not available";
+
+    const variantCodeParts = newVariantCode.split(";");
+    let serieValue =
+      variantCodeParts.find((part) => part.includes(prefix_SERIE_TAP))?.split("=")[1] ?? "N/A";
+    if (serieValue === "N/A") {
+      serieValue =
+        variantCodeParts.find((part) => part.includes("AWSERIE"))?.split("=")[1] ?? "N/A";
+    }
+
+    let priceFromData =
+      priceData.find((data: any) => data[serieValue] !== undefined)?.[serieValue] ?? "SAP not available";
+
+    if (priceFromData !== "SAP not available") {
+      if (priceFromData.toString().includes(".")) {
+        const parts = priceFromData.toString().split(".");
+        parts[1] = parts[1].padEnd(3, "0");
+        priceFromData = parts.join(".") + ",00€";
+      } else {
+        priceFromData += ",00€";
+      }
+    }
+
+    const symbol = price.toString() === priceFromData.toString() ? "✅" : "❌";
+    if (symbol === "✅") {
+      this.globalMatches++;
+    } else {
+      this.globalDiscrepancies++;
+      this.globalPriceErrors.push({
+        sku,
+        variantCode: newVariantCode,
+        price: price.toString(),
+        sapPrice: priceFromData
+      });
+    }
+    // Add the result to the prices table.
+    this.addPriceRow(this.pricesTable, sku, serieValue, price.toString(), priceFromData, symbol);
+  }
+
+  /**
+   * Processes price comparison using a different approach (used in top products/credenza).
+   */
+  private async getPricesAndCompare(sku: string, newVariantCode: string, serie: string): Promise<void> {
+    if (serie === 'N/A') {
+      console.log("No serie found for SKU:", sku);
+      return;
+    }
+    const response = await fetch(`http://localhost:13000/precio/${sku}?serie=${serie}`);
+    const data = await response.json();
+    console.log(`http://localhost:13000/precio/${sku}?serie=${serie}`);
+    const priceSAP: string | number = data[0]?.precio ?? "Price not available";
+
+    const priceServiceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
+    const priceServicePrice: string | number = priceServiceResponse?.price ?? "Price not available";
+
+    const symbol = PriceComparator.comparePricesSymbol(priceSAP, priceServicePrice);
+    if (symbol === "✅") {
+      this.globalMatches++;
+    } else {
+      this.globalDiscrepancies++;
+      this.globalPriceErrors.push({
+        sku,
+        variantCode: newVariantCode,
+        price: priceServicePrice.toString(),
+        sapPrice: priceSAP.toString()
+      });
+    }
+    // Add the row to the table.
+    this.addPriceRow(this.pricesTable, sku, serie, priceServicePrice.toString(), priceSAP.toString(), symbol);
+    console.log(`SKU: ${sku}, Serie: ${serie}, Price: ${priceServicePrice}, SAP Price: ${priceSAP}, Equal: ${symbol}`);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Test Methods for Top Products / Credenza
+  // ─────────────────────────────────────────────────────────────
+
   private async testTopProducts(sku: string): Promise<void> {
     console.log("Testing top products for SKU:", sku);
     const foundItems = await this.searchCatalogItems(sku);
     if (!foundItems) return;
-    
+
     for (const scoredItem of foundItems.scoredItems) {
       const item = scoredItem.item;
-      
       if (item instanceof catalog.ArticleCatalogItem) {
         const element = await this.articleManager.insertArticle(item) as cf.MainArticleElement;
         const articleProperties = await element.getProperties();
         if (!articleProperties) continue;
 
         const formaProperty = articleProperties.find(prop => prop.key === "[Character]AWD_AWFORMA__SOBRE");
+        // If no forma property, simply compare the generated variant code.
         if (!formaProperty) {
           const newVariantCode = await AWVariantCodeUtils.createFromArticle(element);
           await this.getPricesAndCompare(sku, newVariantCode, "0");
           continue;
         }
-
-
 
         const formaChoices = await formaProperty.getChoices();
         if (!formaChoices) continue;
@@ -356,7 +561,6 @@ export class CatalogUI {
                     }
                   } else {
                     console.log("MESA CONFigurable --------------------");
-                    // Mesa normal
                     const newVariantCode = await AWVariantCodeUtils.createFromArticle(element);
                     const awsSeriesMesas = newVariantCode
                       .split(';')
@@ -368,49 +572,7 @@ export class CatalogUI {
               }
             }
           } else {
-            await this.testTopCredenzaProducts(sku); // credenza?
-          }
-        }
-      }
-    }
-  }
-
-  private async getPricesAndCompare(sku: string, newVariantCode: string, serie: string): Promise<void> {
-    if (serie === 'N/A') {
-      console.log("No serie found for SKU:", sku);
-    } else {
-      const response = await fetch(`http://localhost:13000/precio/${sku}?serie=${serie}`);
-      const data = await response.json();
-      console.log(`http://localhost:13000/precio/${sku}?serie=${serie}`);
-      // Assume price comes in the 'precio' property of the first record
-      const priceSAP: string | number = data[0]?.precio ?? "Price not available";
-
-      // Get price from the price service
-      const priceServiceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
-      const priceServicePrice: string | number = priceServiceResponse?.price ?? "Price not available";
-
-      // Compare prices
-      try {
-        const areEqual = PriceComparator.comparePrices(priceSAP, priceServicePrice);
-        const symbol = PriceComparator.comparePricesSymbol(priceSAP, priceServicePrice);
-        console.log(`SKU: ${sku}, Serie: ${serie}, Price: ${priceServicePrice}, SAP Price: ${priceSAP}, Equal: ${symbol}`);
-      } catch (error) {
-        console.error("Error comparing prices:", error);
-      }
-    }
-  }
-
-  private async printAllProperties(foundItems: catalog.TopCatalogItems | undefined): Promise<void> {
-    if (foundItems) {
-      for (const scoredItem of foundItems.scoredItems) {
-        const item = scoredItem.item;
-        if (item instanceof catalog.ArticleCatalogItem) {
-          const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
-          const articleProperties = await element.getProperties();
-          if (articleProperties) {
-            for (const property of articleProperties) {
-              console.log(property);
-            }
+            await this.testTopCredenzaProducts(sku); // fallback for credenza?
           }
         }
       }
@@ -419,7 +581,6 @@ export class CatalogUI {
 
   private async testTopCredenzaProducts(sku: string): Promise<void> {
     const foundItems = await this.searchCatalogItems(sku);
-  
     if (!foundItems) return;
 
     for (const scoredItem of foundItems.scoredItems) {
@@ -468,133 +629,11 @@ export class CatalogUI {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // Price Processing Methods
+  // Summary Builder
   // ─────────────────────────────────────────────────────────────
 
-  private async fetchPriceData(sku: string): Promise<any> {
-    const response = await fetch(`http://localhost:13000/precio/${sku}`);
-    return await response.json();
-  }
-
-  private async processVariant(
-    element: cf.MainArticleElement,
-    sku: string,
-    priceData: any,
-    prefix_SERIE_TAP: string,
-    priceErrors: PriceError[],
-    counters: { matches: number; discrepancies: number }
-  ): Promise<void> {
-    const newVariantCode = await AWVariantCodeUtils.createFromArticle(element);
-    const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
-    const price = priceResponse?.price ?? "Price not available";
-
-    const variantCodeParts = newVariantCode.split(";");
-    let serieValue =
-      variantCodeParts.find((part) => part.includes(prefix_SERIE_TAP))?.split("=")[1] ?? "N/A";
-    if (serieValue === "N/A") {
-      serieValue =
-        variantCodeParts.find((part) => part.includes("AWSERIE"))?.split("=")[1] ?? "N/A";
-    }
-
-    let priceFromData =
-      priceData.find((data: any) => data[serieValue] !== undefined)?.[serieValue] ?? "SAP not available";
-
-    if (priceFromData !== "SAP not available") {
-      if (priceFromData.toString().includes(".")) {
-        const parts = priceFromData.toString().split(".");
-        parts[1] = parts[1].padEnd(3, "0");
-        priceFromData = parts.join(".") + ",00€";
-      } else {
-        priceFromData += ",00€";
-      }
-    }
-
-    const isEqual = price.toString() === priceFromData.toString() ? "✅" : "❌";
-    if (isEqual === "❌") {
-      priceErrors.push({
-        sku,
-        variantCode: newVariantCode,
-        price: price.toString(),
-        sapPrice: priceFromData,
-      });
-      console.log(
-        `SKU: ${sku} - Serie Value: ${serieValue} - Price: ${price.toString()} - SAP Price: ${priceFromData}`
-      );
-      console.log(`Variant Code: ${newVariantCode}`);
-    }
-
-    this.addPriceRow(this.pricesTable, sku, serieValue, price.toString(), priceFromData, isEqual);
-
-    if (isEqual === "✅") {
-      counters.matches++;
-    } else {
-      counters.discrepancies++;
-    }
-  }
-
-  private async processPropertyVariants(
-    element: cf.MainArticleElement,
-    sku: string,
-    AWD_TAPICERIA: string,
-    AWD_SERIE_TAPICERIA: string,
-    prefix_SERIE_TAP: string,
-    priceData: any,
-    priceErrors: PriceError[],
-    counters: { matches: number; discrepancies: number }
-  ): Promise<void> {
-    const articleProperties = await element.getProperties();
-    if (!articleProperties) return;
-
-    for (const property of articleProperties) {
-      if (property.key === AWD_TAPICERIA || property.key === AWD_SERIE_TAPICERIA) {
-        const choices = await property.getChoices();
-        if (choices && choices.length > 0) {
-          const startIndex = choices.length === 2 ? 1 : 0;
-          for (let i = startIndex; i < choices.length; i++) {
-            await property.setValue(choices[i].value);
-            if (choices[i].value === "STAP") {
-              await this.processVariant(element, sku, priceData, prefix_SERIE_TAP, priceErrors, counters);
-            }
-
-            const propsAfterOption = await element.getProperties();
-            if (!propsAfterOption) continue;
-            const materialProperty = propsAfterOption.find(
-              (prop) =>
-                prop.key.startsWith("[Character]AWD_LISTAS") &&
-                prop.key.endsWith("TAPICERIA")
-            );
-            if (materialProperty) {
-              const materialChoices = await materialProperty.getChoices();
-              if (materialChoices && materialChoices.length > 0) {
-                for (const material of materialChoices) {
-                  await materialProperty.setValue(material.value);
-                  const propsAfterMaterial = await element.getProperties();
-                  if (!propsAfterMaterial) continue;
-                  const serieProperty = propsAfterMaterial.find(
-                    (prop) =>
-                      prop.key.startsWith("[Character]AWD_SERIE") &&
-                      prop.key.endsWith("TAPICERIA")
-                  );
-                  if (serieProperty) {
-                    const serieChoices = await serieProperty.getChoices();
-                    if (serieChoices) {
-                      for (const serie of serieChoices) {
-                        await serieProperty.setValue(serie.value);
-                        await this.processVariant(element, sku, priceData, prefix_SERIE_TAP, priceErrors, counters);
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
   private buildSummary(
-    sku: string,
+    skuOrQuery: string,
     matches: number,
     discrepancies: number,
     priceErrors: PriceError[]
@@ -604,7 +643,7 @@ export class CatalogUI {
     this.htmlContainerTestResultsSummary.appendChild(summarySection);
 
     const summaryTitle = document.createElement("h3");
-    summaryTitle.innerText = `Summary for SKU: ${sku}`;
+    summaryTitle.innerText = `Summary for "${skuOrQuery}"`;
     summarySection.appendChild(summaryTitle);
 
     const summaryContent = document.createElement("div");
@@ -654,54 +693,6 @@ export class CatalogUI {
         });
         errorTbody.appendChild(errorRow);
       }
-    }
-  }
-
-  private async getOneProduct(sku: string): Promise<void> {
-    try {
-      // Fetch price data and search for catalog items
-      const priceData = await this.fetchPriceData(sku);
-      const foundItems = await this.searchCatalogItems(sku);
-
-      // Constants for property keys and variant prefix
-      const AWD_TAPICERIA = "[Character]AWD_AWOPCION__TAPICERIA";
-      const AWD_SERIE_TAPICERIA = "[Character]AWD_LISTAS__TAPICERIA";
-      const prefix_SERIE_TAP = "AWSERIE_ASIE";
-
-      // Append the prices table to the results container
-      this.htmlContainerTestResults.appendChild(this.pricesTable);
-
-      // Counters and error collection
-      const counters = { matches: 0, discrepancies: 0 };
-      const priceErrors: PriceError[] = [];
-
-      // Process each found catalog item
-      if (foundItems) {
-        for (const scoredItem of foundItems.scoredItems) {
-          const item = scoredItem.item;
-          if (item instanceof catalog.ArticleCatalogItem) {
-            const element = (await this.articleManager.insertArticle(item)) as cf.MainArticleElement;
-            await this.processPropertyVariants(
-              element,
-              sku,
-              AWD_TAPICERIA,
-              AWD_SERIE_TAPICERIA,
-              prefix_SERIE_TAP,
-              priceData,
-              priceErrors,
-              counters
-            );
-          }
-        }
-      }
-
-      console.log(`Total price matches: ${counters.matches}`);
-      console.log(`Total discrepancies: ${counters.discrepancies}`);
-
-      // Build and display the summary section
-      this.buildSummary(sku, counters.matches, counters.discrepancies, priceErrors);
-    } catch (error) {
-      console.error("Error in getOneProduct:", error);
     }
   }
 }
