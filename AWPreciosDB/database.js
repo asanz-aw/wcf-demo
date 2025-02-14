@@ -26,7 +26,7 @@ class AWPriceService {
     const query = `
       SELECT *
       FROM prices
-      WHERE modelo = ? AND tarifa = ? AND SERIE = ?
+      WHERE modelo = ? AND tarifa = ? AND SERIE = ? and anyo = '2025'
     `;
 
     try {

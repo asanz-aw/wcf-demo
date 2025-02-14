@@ -18,7 +18,7 @@ export default class AWVariantCodeUtils {
     'AW_TAPICERIA_ASP.AWTAPIZ',
     'AW_BZT_TAP.AWTAPIZ_BZ',
     'AW_TAPICERIA.SERIE_TAPICERIA',
-    'AW_TAPICERIA_TAP.SERIE_TAPICERIA'
+    'AW_TAPICERIA_TAP.SERIE_TAPICERIA',
   ];
 
   /**
@@ -38,13 +38,12 @@ export default class AWVariantCodeUtils {
    */
   private static generateVariantArray(properties: basket.Property[]): string[] {
     return properties
-      .filter(prop => prop.propClass.startsWith(this.PROPERTY_PREFIX))
-      .map(
-        prop =>
-          `${this.replaceCharacters(prop.propClass)}.${this.replaceCharacters(
-            prop.propName
-          )}=${prop.value.value}`
-      );
+      .filter((prop) => prop.propClass.startsWith(this.PROPERTY_PREFIX))
+      .map((prop) => {
+        const className = this.replaceCharacters(prop.propClass);
+        const propName = this.replaceCharacters(prop.propName);
+        return `${className}.${propName}=${prop.value.value}`;
+      });
   }
 
   /**
@@ -54,8 +53,8 @@ export default class AWVariantCodeUtils {
    * @returns A Promise that resolves to the variant code string.
    */
   public static async createFromArticle(article: cf.ArticleElement): Promise<string> {
-    const itemProperties: basket.ItemProperties = await article.getItemProperties();
-    const itemData: basket.ArticleData = await article.getArticleData();
+    const itemProperties = await article.getItemProperties();
+    const itemData = await article.getArticleData();
     return this.createVariantCode(itemProperties, itemData);
   }
 
@@ -75,52 +74,90 @@ export default class AWVariantCodeUtils {
       throw new Error('Invalid input: itemProperties or itemData is missing.');
     }
 
-    let allVariantProperties: string[] = [];
-    if (itemProperties.article?.variantCode) {
-      allVariantProperties = itemProperties.article.variantCode.split(this.DELIMITER);
-    }
+    const existingVariantCodes = itemProperties.article?.variantCode
+      ? itemProperties.article.variantCode.split(this.DELIMITER)
+      : [];
 
-    const itemDataVariantArray = this.generateVariantArray(itemData.properties ?? []);
-    // Create a set to hold unique variant strings.
-    let uniqueVariantProperties = new Set([
-      ...allVariantProperties,
-      ...itemDataVariantArray,
+    const generatedVariantCodes = this.generateVariantArray(itemData.properties ?? []);
+
+    // Combine existing and generated variant codes into a set to ensure uniqueness.
+    let variantCodesSet = new Set<string>([
+      ...existingVariantCodes,
+      ...generatedVariantCodes,
     ]);
 
-    // Filter out any variant strings that start with one of the defined prefixes.
-    uniqueVariantProperties = new Set(
-      Array.from(uniqueVariantProperties).filter(
-        value => !this.FILTER_PREFIXES.some(prefix => value.startsWith(prefix))
+    // Filter out any variant codes that start with one of the defined prefixes.
+    variantCodesSet = new Set(
+      Array.from(variantCodesSet).filter(
+        (value) => !this.FILTER_PREFIXES.some((prefix) => value.startsWith(prefix))
       )
     );
 
-    return this.amendSeriesMesaForRutaTables(uniqueVariantProperties);
+    // Amend the variant codes with Credenza Series adjustments.
+    variantCodesSet = this.amendCredenzaSeries(itemProperties, variantCodesSet);
+
+    // Amend variant codes with Series Mesa adjustments for Ruta Tables and return as a string.
+    return this.amendSeriesMesaForRutaTables(variantCodesSet);
   }
 
   /**
    * Amends variant properties by updating series mesa values for ruta tables.
    * If a property starting with 'AW_TIPO_SOBRE_INF.AWSERIES_MESAS_INFERIOR' is found,
-   * then for each property starting with 'AW_CONF_MESAS2.AWSERIES_MESAS' the value is prefixed.
-   * @param variantProperties - Set of variant property strings.
+   * then for each property starting with 'AW_CONF_MESAS2.AWSERIES_MESAS' the value is amended.
+   * @param variantCodes - Set of variant property strings.
    * @returns The concatenated variant code string.
    */
-  private static amendSeriesMesaForRutaTables(variantProperties: Set<string>): string {
-    const seriesMesaInferior = Array.from(variantProperties).find(value =>
+  private static amendSeriesMesaForRutaTables(variantCodes: Set<string>): string {
+    const variantArray = Array.from(variantCodes);
+    const seriesMesaInferior = variantArray.find((value) =>
       value.startsWith('AW_TIPO_SOBRE_INF.AWSERIES_MESAS_INFERIOR')
     );
+
     if (seriesMesaInferior) {
-      const seriesMesaInferiorValue = seriesMesaInferior.split('=')[1];
-      // Create an updated array where matching properties have their value amended.
-      const updatedProperties = Array.from(variantProperties).map(value => {
+      const seriesMesaInferiorValue = seriesMesaInferior.split('=')[1] || '';
+      const updatedCodes = variantArray.map((value) => {
         if (value.startsWith('AW_CONF_MESAS2.AWSERIES_MESAS')) {
-          const originalValue = value.split('=')[1];
+          const originalValue = value.split('=')[1] || '';
           return `AW_CONF_MESAS2.AWSERIES_MESAS=${originalValue}${seriesMesaInferiorValue}`;
         }
         return value;
       });
-      return updatedProperties.join(this.DELIMITER);
+      return updatedCodes.join(this.DELIMITER);
     }
-    return Array.from(variantProperties).join(this.DELIMITER);
+
+    return variantArray.join(this.DELIMITER);
+  }
+
+  /**
+   * Amends variant properties by combining series values for Credenza.
+   * If a property starting with 'AW_CONF_SOBRE.AWSERIE_SOBRE' is found and
+   * a corresponding series extension property exists, a new property is added with the concatenated value.
+   * @param itemProperties - The item properties containing variant codes.
+   * @param variantCodes - Set of variant property strings.
+   * @returns The updated set of variant property strings.
+   */
+  private static amendCredenzaSeries(
+    itemProperties: basket.ItemProperties,
+    variantCodes: Set<string>
+  ): Set<string> {
+    const variantArray = Array.from(variantCodes);
+    const sobreProperty = variantArray.find((value) =>
+      value.startsWith('AW_CONF_SOBRE.AWSERIE_SOBRE')
+    );
+
+    if (sobreProperty) {
+      const seriesSobreValue = sobreProperty.split('=')[1] || '';
+
+      const seriesExtProperty = variantArray.find((value) =>
+        value.startsWith('AW_TIPO_MAT_EXT.AWSERIE_EXT')
+      );
+
+      if (seriesExtProperty) {
+        const seriesExtValue = seriesExtProperty.split('=')[1] || '';
+        variantCodes.add(`AW_CONF_CREDENZA.AWSERIE_MESAS=${seriesExtValue}${seriesSobreValue}`);
+      }
+    }
+
+    return variantCodes;
   }
 }
-
