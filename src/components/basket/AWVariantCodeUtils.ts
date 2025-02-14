@@ -6,10 +6,11 @@ export default class AWVariantCodeUtils {
   private static readonly REPLACE_FROM = /__/g;
   private static readonly REPLACE_TO = '_';
   private static readonly PROPERTY_PREFIX = 'AW_';
+  private static readonly PROPERTY_NAME_SERIE = 'AWSERIE';
 
   // Properties starting with any of these prefixes will be filtered out.
   private static readonly FILTER_PREFIXES: string[] = [
-    'AW_TAPICERIA.AWTAPICERIA',
+   'AW_TAPICERIA.AWTAPICERIA',
     'AW_TAPICERIA_ASP.SERIE',
     'AW_TAPICERIA_ASP.COLECCION',
     'AW_TAPICERIA_ARP.SERIE',
@@ -38,11 +39,11 @@ export default class AWVariantCodeUtils {
    */
   private static generateVariantArray(properties: basket.Property[]): string[] {
     return properties
-      .filter((prop) => prop.propClass.startsWith(this.PROPERTY_PREFIX))
+      .filter((prop) => prop.propClass.startsWith(this.PROPERTY_PREFIX) || prop.propName === this.PROPERTY_NAME_SERIE)
       .map((prop) => {
-        const className = this.replaceCharacters(prop.propClass);
-        const propName = this.replaceCharacters(prop.propName);
-        return `${className}.${propName}=${prop.value.value}`;
+      const className = this.replaceCharacters(prop.propClass);
+      const propName = this.replaceCharacters(prop.propName);
+      return `${className}.${propName}=${prop.value.value}`;
       });
   }
 

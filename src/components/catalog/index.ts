@@ -89,6 +89,7 @@ export class CatalogUI {
   // UI Creation Methods
   // ─────────────────────────────────────────────────────────────
 
+
   private createSearchBar(): HTMLDivElement {
     const searchBar = document.createElement('div');
     searchBar.className = 'catalog-search';
@@ -303,6 +304,28 @@ export class CatalogUI {
     return await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
   }
 
+
+  private async printAllProperties(foundItems: catalog.TopCatalogItems | undefined): Promise<void> {
+    if (foundItems) {
+      for (const scoredItem of foundItems.scoredItems) {
+        const item = scoredItem.item;
+        if (item instanceof catalog.ArticleCatalogItem) {
+          const element: cf.MainArticleElement = await this.articleManager.insertArticle(item);
+          const articleProperties = await element.getProperties();
+          if (articleProperties) {
+            for (const property of articleProperties) {
+              console.log(property);
+            }
+const articleData = await element.getArticleData();
+console.log(articleData.properties);
+
+          }
+        }
+      }
+    }
+  }
+  
+
   // ─────────────────────────────────────────────────────────────
   // Variant Processing & Price Comparison Methods
   // ─────────────────────────────────────────────────────────────
@@ -312,14 +335,16 @@ export class CatalogUI {
    */
   private async getOneProduct(sku: string): Promise<void> {
     try {
-      const priceData = await this.fetchPriceData(sku);
       const foundItems = await this.searchCatalogItems(sku);
+      
       const AWD_TAPICERIA = "[Character]AWD_AWOPCION__TAPICERIA";
       const AWD_SERIE_TAPICERIA = "[Character]AWD_LISTAS__TAPICERIA";
       const prefix_SERIE_TAP = "AWSERIE_ASIE";
 
       if (foundItems) {
+        this.printAllProperties(foundItems);
         for (const scoredItem of foundItems.scoredItems) {
+          
           const item = scoredItem.item;
           if (item instanceof catalog.ArticleCatalogItem) {
             const element = (await this.articleManager.insertArticle(item)) as cf.MainArticleElement;
@@ -328,8 +353,7 @@ export class CatalogUI {
               sku,
               AWD_TAPICERIA,
               AWD_SERIE_TAPICERIA,
-              prefix_SERIE_TAP,
-              priceData
+              prefix_SERIE_TAP
             );
           }
         }
@@ -338,15 +362,56 @@ export class CatalogUI {
       console.error("Error in getOneProduct:", error);
     }
   }
-
-  /**
-   * Fetches price data from the external service.
-   */
-  private async fetchPriceData(sku: string): Promise<any> {
-    const response = await fetch(`http://localhost:13000/precio/${sku}`);
-    return await response.json();
-  }
-
+/*
+  SearchParameterSet {_ensureTypeSafety: 'ensureTypeSafety', query: 'BU1520', catalogIds: Array(1), numberOfHits: 100, flags: Array(1)}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_TipoAsiento', name: 'Typology', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Collection', name: 'Collection', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Frame', name: 'Frame', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_FiniSeat', name: 'Seat material', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_LooseCover', name: 'Loose cover', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_FiniBack', name: 'Backrest material', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Base', name: 'Support', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Arms', name: 'Arms', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_HighBack', name: 'Backrest height', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_SizeH', name: 'Height (cm)', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_SizeW', name: 'Width (cm)', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_SizeH2', name: 'Height (cm-inches)', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_SizeW2', name: 'Width (cm-inches)', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Cushion', name: 'Cushion', class: 'AWD_CAROPT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Fundas', name: 'Cover', class: 'AWD_CAROPT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Ref', name: 'Reference', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Apilable', name: 'Stacking', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_Apilable_Carro', name: 'Stacking on trolley', class: 'AWD_CARSPE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GBraccioloRiv', name: '@GBraccioloRiv', class: 'AWD_CAROPT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GCategorieArm', name: '@GCategorieArm', class: 'AWD_CARARM', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GTipoImbottituraArm', name: '@GTipoImbottituraArm', class: 'AWD_CARARM', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GIMB01Arm', name: '@GIMB01Arm', class: 'AWD_CARARM', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GCIMB01Arm', name: '@GCIMB01Arm', class: 'AWD_CARARM', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GTipoScocca', name: '@GTipoScocca', class: 'AWD_CARSEAT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GTypeShell', name: '@GTypeShell', class: 'AWD_CARSEAT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GCategorie', name: '@GCategorie', class: 'AWD_CARSEAT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GTipoImbottitura', name: '@GTipoImbottitura', class: 'AWD_CARSEAT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GIMB01', name: '@GIMB01', class: 'AWD_CARSEAT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GIMB02', name: '@GIMB02', class: 'AWD_CARSEAT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GCIMB01', name: '@GCIMB01', class: 'AWD_CARSEAT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GIMB01Pol', name: '@GIMB01Pol', class: 'AWD_MetaProperties', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GTipoRueda', name: '@GTipoRueda', class: 'AWD_CAROPT', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GAsiento', name: '@GAsiento', class: 'AWD_MetaProperties', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GTipoColeccion', name: '@GTipoColeccion', class: 'AWD_MetaProperties', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_LISTAS__COLOR', name: 'Finish', class: 'AWD_AW_COLOR', editable: false, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_AWCOLOR', name: 'Color', class: 'AWD_AW_COLOR', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_LISTAS__TAPICERIA', name: 'Upholstery material', class: 'AWD_AW_TAPICERIA', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_SERIE__TAPICERIA', name: 'Upholstery grade', class: 'AWD_AW_TAPICERIA', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_COLECCION__TAPICERIA', name: 'Upholstery collection', class: 'AWD_AW_TAPICERIA', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_AWSERIETAP', name: 'Upholstery grade', class: 'AWD_AW_TAPICERIA', editable: false, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_AWTAPICERIA', name: 'Upholstery color', class: 'AWD_AW_TAPICERIA', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_USO__TACOS', name: 'Glide use', class: 'AWD_AW_TACOS', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_MATERIAL__TACOS', name: 'Glide material', class: 'AWD_AW_TACOS', editable: false, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_TAW__LISTAS__TCSBASC', name: 'Glide', class: 'AWD_AW_TACOS', editable: false, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_AWBASCULANTE', name: 'Titing', class: 'AWD_AW_BASCULANTE', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_AWMESA__AUX', name: 'Auxiliary table', class: 'AWD_AW_MESA_AUX', editable: true, …}
+  index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_AWSERIE', name: 'Chair series', class: null, editable: false, …}
+  index.ts:411 Serie: AZ*/
   /**
    * Processes property variants by iterating over relevant properties and choices.
    */
@@ -355,8 +420,7 @@ export class CatalogUI {
     sku: string,
     AWD_TAPICERIA: string,
     AWD_SERIE_TAPICERIA: string,
-    prefix_SERIE_TAP: string,
-    priceData: any
+    prefix_SERIE_TAP: string
   ): Promise<void> {
     const articleProperties = await element.getProperties();
     if (!articleProperties) return;
@@ -369,7 +433,7 @@ export class CatalogUI {
           for (let i = startIndex; i < choices.length; i++) {
             await property.setValue(choices[i].value);
             if (choices[i].value === "STAP") {
-              await this.processVariant(element, sku, priceData, prefix_SERIE_TAP);
+              await this.processVariant(element, sku, prefix_SERIE_TAP);
             }
             const propsAfterOption = await element.getProperties();
             if (!propsAfterOption) continue;
@@ -395,7 +459,11 @@ export class CatalogUI {
                     if (serieChoices) {
                       for (const serie of serieChoices) {
                         await serieProperty.setValue(serie.value);
-                        await this.processVariant(element, sku, priceData, prefix_SERIE_TAP);
+                        console.log("Serie:", serie.value); 
+                        await this.processVariant(element, sku, prefix_SERIE_TAP);
+                       // const itemProperties = await element.getItemProperties();
+   
+
                       }
                     }
                   }
@@ -408,6 +476,9 @@ export class CatalogUI {
     }
   }
 
+
+ 
+
   /**
    * Processes a single variant, compares prices, adds a row to the results table,
    * and updates global counters and error details.
@@ -415,10 +486,19 @@ export class CatalogUI {
   private async processVariant(
     element: cf.MainArticleElement,
     sku: string,
-    priceData: any,
     prefix_SERIE_TAP: string
   ): Promise<void> {
+ 
     const newVariantCode = await AWVariantCodeUtils.createFromArticle(element);
+    const variantCodeParts = newVariantCode.split(';');
+    const serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
+    
+    console.log(newVariantCode); 
+    await this.getPricesAndCompare(sku, newVariantCode, serieValue);
+    
+  
+   /*
+   
     const priceResponse = await this.priceService.fetchPrice(sku, newVariantCode);
     const price = priceResponse?.price ?? "Price not available";
 
@@ -456,7 +536,7 @@ export class CatalogUI {
       });
     }
     // Add the result to the prices table.
-    this.addPriceRow(this.pricesTable, sku, serieValue, price.toString(), priceFromData, symbol);
+    this.addPriceRow(this.pricesTable, sku, serieValue, price.toString(), priceFromData, symbol);*/
   }
 
   /**
