@@ -297,10 +297,10 @@ export class CatalogUI {
   private async searchCatalogItems(sku: string): Promise<catalog.TopCatalogItems | undefined> {
     const parameterSet = new catalog.SearchParameterSet();
     parameterSet.catalogIds = [this.catalogPath[0]];
-    parameterSet.query = sku;
+    parameterSet.query = sku.toUpperCase();
     parameterSet.numberOfHits = 100;
     parameterSet.flags = ["FolderText"];
-    console.log(parameterSet);
+   // console.log(parameterSet);
     return await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
   }
 
@@ -342,12 +342,13 @@ console.log(articleData.properties);
       const prefix_SERIE_TAP = "AWSERIE_ASIE";
 
       if (foundItems) {
-        this.printAllProperties(foundItems);
+       // this.printAllProperties(foundItems);
         for (const scoredItem of foundItems.scoredItems) {
           
           const item = scoredItem.item;
           if (item instanceof catalog.ArticleCatalogItem) {
             const element = (await this.articleManager.insertArticle(item)) as cf.MainArticleElement;
+            console.log("Element:", sku, " " + AWD_TAPICERIA, " " + AWD_SERIE_TAPICERIA, "prefix:", prefix_SERIE_TAP);
             await this.processPropertyVariants(
               element,
               sku,
@@ -362,6 +363,7 @@ console.log(articleData.properties);
       console.error("Error in getOneProduct:", error);
     }
   }
+  
 /*
   SearchParameterSet {_ensureTypeSafety: 'ensureTypeSafety', query: 'BU1520', catalogIds: Array(1), numberOfHits: 100, flags: Array(1)}
   index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_GSE_TipoAsiento', name: 'Typology', class: 'AWD_CARSPE', editable: true, …}
@@ -412,6 +414,7 @@ console.log(articleData.properties);
   index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_AWMESA__AUX', name: 'Auxiliary table', class: 'AWD_AW_MESA_AUX', editable: true, …}
   index.ts:317 StringProperty {mProvider: MainArticleElement, key: '[Character]AWD_AWSERIE', name: 'Chair series', class: null, editable: false, …}
   index.ts:411 Serie: AZ*/
+
   /**
    * Processes property variants by iterating over relevant properties and choices.
    */
@@ -472,7 +475,10 @@ console.log(articleData.properties);
             }
           }
         }
+      } else {
+        
       }
+
     }
   }
 
@@ -491,10 +497,22 @@ console.log(articleData.properties);
  
     const newVariantCode = await AWVariantCodeUtils.createFromArticle(element);
     const variantCodeParts = newVariantCode.split(';');
+ 
+     
+   
     const serieValue = variantCodeParts.find(part => part.includes(prefix_SERIE_TAP))?.split('=')[1] ?? 'N/A';
+   
+    if (serieValue === "") {  // si no es ARP O ASP es SERIE 
+      const serieValue = variantCodeParts.find(part => part.includes('AWSERIE='))?.split('=')[1] ?? 'N/A';
+    console.log("Serie tap-> ", variantCodeParts, "prefijo: ", prefix_SERIE_TAP);
+      await this.getPricesAndCompare(sku, newVariantCode, serieValue);
+    } else {
+      console.log("Serie-> ", serieValue);
+      await this.getPricesAndCompare(sku, newVariantCode, serieValue);
+    }
+
     
-    console.log(newVariantCode); 
-    await this.getPricesAndCompare(sku, newVariantCode, serieValue);
+   
     
   
    /*
@@ -517,7 +535,7 @@ console.log(articleData.properties);
       if (priceFromData.toString().includes(".")) {
         const parts = priceFromData.toString().split(".");
         parts[1] = parts[1].padEnd(3, "0");
-        priceFromData = parts.join(".") + ",00€";
+        priceFromData = par*ts.join(".") + ",00€";
       } else {
         priceFromData += ",00€";
       }
@@ -543,7 +561,7 @@ console.log(articleData.properties);
    * Processes price comparison using a different approach (used in top products/credenza).
    */
   private async getPricesAndCompare(sku: string, newVariantCode: string, serie: string): Promise<void> {
-    if (serie === 'N/A') {
+    if (serie === 'N/A' || serie === '') {
       console.log("No serie found for SKU:", sku);
       return;
     }
