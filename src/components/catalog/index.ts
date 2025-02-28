@@ -266,6 +266,8 @@ export class CatalogUI {
         break;
       case 'Folder':
         if (this.showingSearchResults) {
+          console.log("Catalog Path:", this.catalogPath);
+          console.log("Item:", item.catalogId, item.catalogNodeKey);
           this.catalogPath = await this.catalogService.getCatalogPath(item.catalogId, item.catalogNodeKey);
           this.showingSearchResults = false;
         } else {
@@ -299,13 +301,14 @@ export class CatalogUI {
     parameterSet.query = sku.toUpperCase();
     parameterSet.numberOfHits = 100;
     parameterSet.flags = ["FolderText"];
-   // console.log(parameterSet);
+   console.log(this.catalogPath);
     return await this.catalogService.searchCatalogItems(parameterSet, this.lookupOptions);
   }
 
 
   private async printAllProperties(foundItems: catalog.TopCatalogItems | undefined): Promise<void> {
     if (foundItems) {
+      
       for (const scoredItem of foundItems.scoredItems) {
         const item = scoredItem.item;
         if (item instanceof catalog.ArticleCatalogItem) {
@@ -346,13 +349,15 @@ for (const prop in articleData.properties) {
       const prefix_SERIE_TAP = "AWSERIE_ASIE";
 
       if (foundItems) {
+        this.printAllProperties(foundItems);
        // this.printAllProperties(foundItems);
         for (const scoredItem of foundItems.scoredItems) {
-          
+        
           const item = scoredItem.item;
           if (item instanceof catalog.ArticleCatalogItem) {
             const element = (await this.articleManager.insertArticle(item)) as cf.MainArticleElement;
-            console.log("Element:", sku, " " + AWD_TAPICERIA, " " + AWD_SERIE_TAPICERIA, "prefix:", prefix_SERIE_TAP);
+            console.log("Element:", sku, " " + AWD_TAPICERIA, " " + AWD_SERIE_TAPICERIA, "prefix:", prefix_SERIE_TAP, element);
+           
             await this.processPropertyVariants(
               element,
               sku,
@@ -360,13 +365,19 @@ for (const prop in articleData.properties) {
               AWD_SERIE_TAPICERIA,
               prefix_SERIE_TAP
             );
+
+            
           }
+      
         }
+        
+ 
       }
+      
     } catch (error) {
       console.error("Error in getOneProduct:", error);
     }
-  }
+}
 
   /**
    * Processes property variants by iterating over relevant properties and choices.

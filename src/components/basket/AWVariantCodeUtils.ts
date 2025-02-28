@@ -10,7 +10,7 @@ export default class AWVariantCodeUtils {
 
   // Properties starting with any of these prefixes will be filtered out.
   private static readonly FILTER_PREFIXES: string[] = [
-   'AW_TAPICERIA.AWTAPICERIA',
+    'AW_TAPICERIA.AWTAPICERIA',
     'AW_TAPICERIA_ASP.SERIE',
     'AW_TAPICERIA_ASP.COLECCION',
     'AW_TAPICERIA_ARP.SERIE',
@@ -96,7 +96,8 @@ export default class AWVariantCodeUtils {
 
     // Amend the variant codes with Credenza Series adjustments.
     variantCodesSet = this.amendCredenzaSeries(itemProperties, variantCodesSet);
-
+    variantCodesSet = this.amendExtraTableMesaSeries(itemProperties, variantCodesSet);
+  
     // Amend variant codes with Series Mesa adjustments for Ruta Tables and return as a string.
     return this.amendSeriesMesaForRutaTables(variantCodesSet);
   }
@@ -142,23 +143,68 @@ export default class AWVariantCodeUtils {
     variantCodes: Set<string>
   ): Set<string> {
     const variantArray = Array.from(variantCodes);
-    const sobreProperty = variantArray.find((value) =>
-      value.startsWith('AW_CONF_SOBRE.AWSERIE_SOBRE')
+    const matExtProperty = variantArray.find((value) =>
+      value.startsWith('AW_COLOR_EXTERIOR.AWSERIES_MESAS_EXT')
     );
+ 
+    if (matExtProperty) { // es credenza 
+      const seriesExtMatValue = matExtProperty.split('=')[1] || '';
 
-    if (sobreProperty) {
-      const seriesSobreValue = sobreProperty.split('=')[1] || '';
-
-      const seriesExtProperty = variantArray.find((value) =>
-        value.startsWith('AW_TIPO_MAT_EXT.AWSERIE_EXT')
+      const seriesTempoCredenzaProperty = variantArray.find((value) =>
+        value.startsWith('AW_CONF_SOBRE.AWSERIE_SOBRE') // tempo credenza
       );
 
-      if (seriesExtProperty) {
-        const seriesExtValue = seriesExtProperty.split('=')[1] || '';
-        variantCodes.add(`AW_CONF_CREDENZA.AWSERIE_MESAS=${seriesExtValue}${seriesSobreValue}`);
+      const seriesElementCredenzaProperty = variantArray.find((value) =>
+        value.startsWith('AW_COLOR_INT_P.AWSERIES_MESAS_INT_P') // element credenza
+      );
+      if (seriesTempoCredenzaProperty) {
+        const seriesFrontValue = seriesTempoCredenzaProperty.split('=')[1] || '';
+        variantCodes.add(`AW_CONF_CREDENZA.AWSERIE_MESAS=${seriesExtMatValue}${seriesFrontValue}`);
+      } else if (seriesElementCredenzaProperty) { //element 
+        const seriesIntValue = seriesElementCredenzaProperty.split('=')[1] || '';
+        variantCodes.add(`AW_CONF_CREDENZA.AWSERIE_MESAS=${seriesExtMatValue}${seriesIntValue}`);
       }
     }
-
+    
     return variantCodes;
   }
-}
+
+
+
+  private static amendExtraTableMesaSeries(
+    itemProperties: basket.ItemProperties,
+    variantCodes: Set<string>
+  ): Set<string> {
+    const variantArray = Array.from(variantCodes);
+  
+    const sobreProperty = variantArray.find((value) =>
+      value.startsWith('AW_FORMA_PATAS.AWSERIE_FORMA_PATAS')
+    );
+    if (sobreProperty) {
+      const seriesSobreValue = sobreProperty.split('=')[1] || '';
+  
+      // Localizamos la propiedad de la serie de mesas
+      const seriesExtProperty = variantArray.find((value) =>
+        value.startsWith('AW_CONF_MESAS2.AWSERIES_MESAS')
+      );
+  
+      if (seriesExtProperty) {
+        const seriesExtValue = seriesExtProperty.split('=')[1] || '';
+  
+        // 1. Eliminamos el valor antiguo
+        variantCodes.delete(seriesExtProperty);
+  
+        // 2. Añadimos el nuevo valor (sin la comilla extra)
+        variantCodes.add(
+          `AW_CONF_MESAS2.AWSERIES_MESAS=${seriesExtValue}${seriesSobreValue}`
+        );
+      }
+    }
+  
+    return variantCodes;
+  }
+  
+
+} 
+//AW_CONF_SOBRE.AWTIPO_TOP=M3;AW_CONF_SOBRE.AWCOLOR_SOBRE=MARC;AW_CONF_SOBRE.AWMATEBRILLO=MATE;AW_COLOR_EXTERIOR.AWTIPO_MAT_EXT=NOG;AW_COLOR_EXTERIOR.AWCOLOR_EXT=377;AW_CONF_SOBRE.AWSERIE_SOBRE=T8;AW_COLOR_EXTERIOR.AWCOLOR_EXT=_377;AW_COLOR_EXTERIOR.AWSERIES_MESAS_EXT=E21
+ 

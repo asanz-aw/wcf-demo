@@ -188,7 +188,7 @@ export class BasketUI {
                     ProgressUI.endLoading();
                 };
                 item.appendChild(migrationButton);
-            }
+            } 
         }
         return item;
     }
